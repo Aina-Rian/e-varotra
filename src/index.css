@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply antialiased text-gray-900;
+    /* @apply bg-fixed bg-center bg-cover bg-no-repeat;
+    background-image: url('/Fond_bleu.jpg'); */
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors;
+  }
+}
+
+.pattern-grid-lg {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Background pattern */
+.bg-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes underlineGrow {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.highlight-progress {
+  color: #163c62;
+}
+
+.highlight-progress::before {
+  content: ' ';
+  position: absolute;
+  left: 0;
+  bottom: 0.1em;
+  height: 100%;
+  width: 0%;
+  background-color: #fff224;
+  z-index: -1;
+  animation: underlineGrow 2s ease-out forwards;
+  border-radius: 0.4rem;
+  padding: 0 0.3rem;
+}
