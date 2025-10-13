@@ -3,29 +3,23 @@ import { motion } from "framer-motion";
 import {
   Edit2,
   Trash2,
-  Shield,
   Search,
   UserPlus,
   X,
-  Check,
-  DollarSign,
-  Tag,
   Plus,
-  PlusCircle,
   Minus,
-  MinusCircle,
-  XCircle,
   Trash,
   Eye,
+  Grid3x3,
+  List,
+  Filter,
+  Download,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 import { toast, Toaster } from "react-hot-toast";
 import type { Database } from "../../types/supabase";
-import { set } from "date-fns";
-import { JSX } from "react/jsx-runtime";
-import { User } from "@supabase/supabase-js";
-import { Form } from "react-router-dom";
 
 type Sales = Database["public"]["Tables"]["sales"]["Row"] & {
   creator: Database["public"]["Tables"]["users"]["Row"];
@@ -36,7 +30,6 @@ type Orders = Database["public"]["Tables"]["orders"]["Row"] & {
   client: Database["public"]["Tables"]["clients"]["Row"];
   sale: Database["public"]["Tables"]["sales"]["Row"];
 };
-
 
 interface PackagesManagementProps {
   isDark: boolean;
@@ -50,16 +43,6 @@ interface PackagesManagementProps {
     accent: string;
     yellow: string;
   };
-}
-
-interface saleForm {
-  title: string;
-  type: string;
-  product: string;
-  description: string;
-  quantity: number;
-  prices: number[];
-  creator: string;
 }
 
 interface OrdersForm {
@@ -87,33 +70,20 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
   const [orders, setOrders] = useState<Orders[]>([]);
   const [products, setProducts] = useState<Products[]>([]);
   const [clients, setClients] = useState<Clients[]>([]);
-  const [sales, setSales] = useState<Sales[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Products | null>(null);
-  const [editingSale, setEditingSale] = useState<string | null>(null);
   const [editingOrder, setEditingOrder] = useState<string | null>(null);
   const [editingClient, setEditingClient] = useState<string | null>(null);
   const salesEndRef = useRef<HTMLDivElement | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchClient, setSearchClient] = useState("");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
-    null
-  );
-  const [showModal, setShowModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [orderModal, setOrderModal] = useState(false);
   const [showAddClient, setShowAddClient] = useState(false);
   const [newPrice, setNewPrice] = useState<number | "">("");
   const [newQty, setNewQty] = useState<number | "">("");
-  const [saleData, setSaleData] = useState<saleForm>({
-    title: "",
-    type: "",
-    product: "",
-    description: "",
-    quantity: 0,
-    prices: [],
-    creator: "",
-  });
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+
   const [orderForm, setOrderForm] = useState<OrdersForm>({
     client: {
       full_name: "",
@@ -130,7 +100,6 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
     status: "En attente",
     comment: "",
   });
-
 
   useEffect(() => {
     fetchData();
@@ -166,81 +135,14 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
 
       if (clientError) throw clientError;
 
-      const { data: salesData, error: salesError } = await supabase
-        .from("sales")
-        .select(
-          `
-          *,
-          creator:users(*)
-        `
-        )
-        .order("created_at", { ascending: false });
-
-      if (salesError) throw salesError;
-
       setOrders(orderData || []);
       setProducts(productData || []);
       setClients(clientData || []);
-      setSales(salesData || []);
-      // console.log(orderData);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load data");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSaveSale = async () => {
-    try {
-      if (editingSale) {
-        // Update existing sale
-        console.log("Updating sale with ID:", editingSale);
-        const { error } = await supabase
-          .from("sales")
-          .update({
-            title: saleData.title,
-            type: saleData.type,
-            product_id: saleData.product,
-            description: saleData.description,
-            quantity: saleData.quantity,
-            prices: saleData.prices,
-          })
-          .eq("id", editingSale);
-
-        if (error) {
-          toast.error(`Update error: ${error.message}`);
-          throw error;
-        }
-      } else {
-        // Create new sale
-        const { error } = await supabase.from("sales").insert({
-          title: saleData.title,
-          type: saleData.type,
-          product_id: saleData.product,
-          description: saleData.description,
-          quantity: saleData.quantity,
-          prices: saleData.prices,
-          creator: user?.id,
-        });
-
-        if (error) {
-          toast.error(`Insert error: ${error.message}`);
-          throw error;
-        }
-      }
-      toast.success("Sale saved successfully");
-      setShowModal(false);
-      setEditingSale(null);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      console.error("Error saving sale:", error);
-      toast.error(
-        `Error saving sale: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
     }
   };
 
@@ -254,13 +156,9 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
         return acc + price;
       }, 0);
 
-      console.log(orderForm.total);
-
       if (orderForm.client_id) {
-        // Client is selected
         clientId = orderForm.client_id;
       } else {
-        // Create new client
         const { data: newClient, error: clientError } = await supabase
           .from("clients")
           .insert({
@@ -314,7 +212,6 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
           })
           .eq("uid", editingOrder);
 
-
         if (error) {
           toast.error(`Client not found: ${error.message}`);
           throw error;
@@ -334,50 +231,17 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
           toast.error(`Client not found: ${error.message}`);
           throw error;
         }
-
-        // Update product quantity after order creation
-        if (orderForm.article.length > 0 && orderForm.article[0]) {
-          // Assuming you want to update the quantity of the first product in the order
-          const productId = orderForm.article[0].product_id || orderForm.article[0].id;
-          if (productId) {
-            // Fetch current quantity
-            const { data: productData, error: fetchError } = await supabase
-              .from("products")
-              .select("quantity")
-              .eq("id", productId)
-              .single();
-
-            if (fetchError) {
-              toast.error(`Error fetching product: ${fetchError.message}`);
-              throw fetchError;
-            }
-
-            const currentQty = productData?.quantity ?? 0;
-            const updatedQty = currentQty - nbr_article;
-
-            const { error: productError } = await supabase
-              .from("products")
-              .update({ quantity: updatedQty })
-              .eq("id", productId);
-
-            if (productError) {
-              toast.error(`Error updating product quantity: ${productError.message}`);
-              throw productError;
-            }
-          }
-        }
       }
 
-      toast.success("Sale saved successfully");
-      setShowModal(false);
-      setEditingSale(null);
+      toast.success("Commande enregistrée avec succès");
       setOrderModal(false);
+      setEditingOrder(null);
       resetForm();
       fetchData();
     } catch (error) {
-      console.error("Error saving sale:", error);
+      console.error("Error saving order:", error);
       toast.error(
-        `Error saving sale: ${
+        `Error saving order: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
@@ -389,12 +253,12 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
       const { error } = await supabase
         .from("orders")
         .delete()
-        .eq("id", orderId);
+        .eq("uid", orderId);
 
       if (error) throw error;
 
       setOrders(orders.filter((order) => order.uid !== orderId));
-      toast.success("Order deleted successfully");
+      toast.success("Commande supprimée avec succès");
       setShowDeleteConfirm(null);
     } catch (error) {
       console.error("Error deleting order:", error);
@@ -402,27 +266,19 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
     }
   };
 
-  // Filtrer et trier les commandes par ordre alphabétique du nom complet
   const filteredOrders = orders.filter((order) => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
       order.id?.toString().toLowerCase().includes(searchLower) ||
       order.client?.full_name?.toLowerCase().includes(searchLower) ||
-      order.comment?.toLowerCase().includes(searchLower)
-    );
+      order.comment?.toLowerCase().includes(searchLower);
+
+    const matchesFilter = filterStatus === "all" || order.status === filterStatus;
+
+    return matchesSearch && matchesFilter;
   });
 
   const resetForm = () => {
-    setSaleData({
-      title: "",
-      type: "",
-      product: "",
-      description: "",
-      quantity: 0,
-      prices: [],
-      creator: "",
-    });
-
     setOrderForm({
       client: {
         full_name: "",
@@ -442,23 +298,11 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
   };
 
   function formatNumber(value: string): string {
-    // Supprimer tous les caractères non numériques
     const cleaned = value.replace(/\D/g, "");
-
     if (!cleaned) return "";
-
-    // Formater avec séparateurs de milliers (.)
     return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   }
 
-  useLayoutEffect(() => {
-    const el = salesEndRef.current;
-    if (!el) return;
-
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [sales, filteredOrders]);
-
-  // Ajouter un article
   const addArticle = () => {
     if (newPrice === "" || newQty === "") return;
     setOrderForm((prev) => ({
@@ -473,7 +317,6 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
     setNewQty("");
   };
 
-  // Supprimer un article
   const removeArticle = (idx: number) => {
     setOrderForm((prev) => ({
       ...prev,
@@ -481,496 +324,311 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
     }));
   };
 
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { label: "En attente", class: "border-orange-500 text-orange-700 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400" },
+      delivered: { label: "Livré", class: "border-green-500 text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400" },
+      returned: { label: "Retourné", class: "border-red-500 text-red-700 bg-red-50 dark:bg-red-900/20 dark:text-red-400" },
+    };
+    return statusConfig[status] || statusConfig.pending;
+  };
+
   return (
     <div className="space-y-6">
+      <Toaster position="top-right" reverseOrder={false} />
+
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Gestion des colis</h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-gray-400">
             Gérer les colis, assigner des livraisons et suivre les statuts.
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Rechercher une vente..."
+              placeholder="Rechercher..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`pl-10 pr-4 py-2 ${baseClasses.input} border ${baseClasses.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-vibees-accent`}
+              className={`w-full pl-10 pr-4 py-2 ${baseClasses.input} border ${baseClasses.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
             />
           </div>
+
+          {/* Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className={`px-4 py-2 ${baseClasses.input} border ${baseClasses.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="pending">En attente</option>
+            <option value="delivered">Livré</option>
+            <option value="returned">Retourné</option>
+          </select>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("table")}
+              className={`p-2 rounded ${viewMode === "table" ? "bg-white dark:bg-gray-700 shadow" : ""}`}
+            >
+              <List className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-2 rounded ${viewMode === "grid" ? "bg-white dark:bg-gray-700 shadow" : ""}`}
+            >
+              <Grid3x3 className="w-5 h-5" />
+            </button>
+          </div>
+
           <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center px-4 py-2 bg-vibees-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
+            onClick={() => setOrderModal(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <UserPlus className="w-5 h-5 mr-2" />
-            Ajouter une vente
+            <span className="hidden sm:inline">Nouvelle commande</span>
           </button>
-          <Toaster position="top-right" reverseOrder={false} />
         </div>
       </div>
 
-      {/* Sales Table */}
-      <div
-        className={`${baseClasses.card} rounded-xl shadow-sm overflow-hidden border ${baseClasses.border} flex flex-col`}
-        style={{ height: "calc(100vh - 200px)" }}
-      >
-        <div className="overflow-x-auto flex-1" ref={salesEndRef}>
-          <table className="w-full table-fixed">
-            <thead>
-              <tr className={isDark ? "bg-[#142845]" : "bg-gray-50"}>
-                <th className="px-6 py-3 w-16 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Id
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Client
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Lieu
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Articles
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Frais
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Total
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Livreur
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={9} className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-vibees-accent border-t-transparent rounded-full animate-spin"></div>
-                      <span className="ml-2">Chargement des colis...</span>
-                    </div>
-                  </td>
+      {/* Content - Table or Grid View */}
+      {viewMode === "table" ? (
+        <div className={`${baseClasses.card} rounded-xl shadow-sm overflow-hidden border ${baseClasses.border}`}>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className={isDark ? "bg-gray-950" : "bg-gray-50"}>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Id</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Lieu</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Articles</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Livreur</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
-              ) : filteredOrders.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="px-6 py-4 text-center text-gray-500"
-                  >
-                    Aucun Colis trouvé
-                  </td>
-                </tr>
-              ) : (
-                filteredOrders.map((order) => (
-                  <tr
-                    key={`order-${order.uid}`}
-                    className={`hover:${isDark ? "bg-[#142845]" : "bg-gray-50"} cursor-pointer`}
-                  >
-                    <td className="text-left px-6 py-4 whitespace-nowrap bg-gray-50 border-r border-red text-sm">
-                      <span className="font-semibold">{order.id}</span>
-                    </td>
-                    <td
-                      className={`text-left px-6 py-4 whitespace-nowrap text-sm ${
-                        baseClasses.text
-                      } hover:${
-                        isDark ? "bg-[#142845]" : "bg-gray-50"
-                      } cursor-pointer`}
-                    >
-                      <span className="text-sm font-medium">
-                        {order.client?.full_name || "Inconnu"}
-                      </span>
-                    </td>
-                     <td
-                      className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}
-                    >
-                      <span className="text-sm">
-                        {order.client?.city === "Antananarivo"
-                          ? order.client?.address
-                          : order.client?.coop}
-                      </span>
-                    </td>
-                    <td
-                      className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}
-                    >
-                      <span className="text-sm">
-                        {Array.isArray(order.article)
-                          ? (order.article as any[])
-                              .filter(
-                                (
-                                  a
-                                ): a is {
-                                  price: number;
-                                  quantity: number;
-                                } =>
-                                  a &&
-                                  typeof a === "object" &&
-                                  "price" in a &&
-                                  "quantity" in a
-                              )
-                              .map(
-                                (
-                                  a: { price: number; quantity: number },
-                                  idx: number,
-                                  arr: {
-                                    price: number;
-                                    quantity: number;
-                                  }[]
-                                ) => (
-                                  <span key={idx}>
-                                    {a.price} × {a.quantity}
-                                    {idx < arr.length - 1 && " | "}
-                                  </span>
-                                )
-                              )
-                          : null}
-                      </span>
-                    </td>
-                    <td
-                      className={`text-center px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}
-                    >
-                       {editingOrder === order.uid ? (
-                        <input
-                          type="number"
-                          value={orderForm.delivery_fee ?? ""}
-                          onChange={(e) => {
-                            const fee = e.target.value === "" ? 0 : Number(e.target.value);
-                            setOrderForm((prev) => ({
-                              ...prev,
-                              delivery_fee: fee,
-                            }));
-                          }}
-                          className={`${baseClasses.input} border py-1 px-2 ${baseClasses.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-vibees-accent w-20 text-center`}
-                          placeholder="Frais"
-                        />
-                      ) : (
-                        <span className="text-sm">3</span>
-                      )}
-                    </td>
-                    <td
-                      className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}
-                    >
-                      <span className="text-sm">
-                        {formatNumber(String(order.total ?? ""))} Ar
-                      </span>
-                    </td>
-                    <td
-                      className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text} truncate`}
-                    >
-                       {editingOrder === order.uid ? (
-                        <select
-                          value={'Rivo'}
-                          // onChange={(e) => setSelectedRole(e.target.value as User['role'])}
-                          className={`${baseClasses.input} border py-1 px-2 ${baseClasses.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-vibees-accent`}
-                        >
-                          <option value="attendee">Rivo</option>
-                          <option value="speaker">Speaker</option>
-                          <option value="moderator">Moderator</option>
-                        </select>
-                      ) : (
-                        <span className="text-sm">Rivo</span>
-                      )}
-                      {/* // ! A remplacer par le nom du livreur */}
-                    </td>
-                    <td
-                      className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}
-                    >
-                      {editingOrder === order.uid ? (
-                        <select
-                          value={order.status ?? ""}
-                          // onChange={(e) => setSelectedRole(e.target.value as User['role'])}
-                          className={`${baseClasses.input} border py-1 px-2 ${baseClasses.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-vibees-accent`}
-                        >
-                          <option value="pending">En attente</option>
-                          <option value="delivered">Livré</option>
-                          <option value="returned">Retourné</option>
-                        </select>
-                      ) : (
-                        <span
-                          className={`text-sm py-1 px-1 border-2 rounded-lg ${
-                            order.status === "delivered"
-                              ? "border-green-500 text-green-700 bg-green-50"
-                              : order.status === "returned"
-                              ? "border-red-500 text-red-700 bg-red-50"
-                              : "border-orange-500 text-orange-700 bg-orange-50"
-                          }`}
-                        >
-                          {order.status}
-                        </span>
-                      )}
-                    </td>
-                    <td
-                      className={`text-right px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}
-                    >
-                      {!editingOrder ? (
-                        <button 
-                          className="text-vibees-accent hover:text-vibees-accent/80 mr-3"
-                          onClick={() => {
-                            setEditingOrder(order.uid);
-                          }}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <button 
-                          className="text-red-500 hover:text-red-400 mr-3"
-                          onClick={() => {
-                            setEditingOrder(null);
-                          }}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                      <button type="button" className="text-vibees-accent hover:text-vibees-accent/80 mr-3">
-                        <Eye className="w-4 h-4" />
-                      </button>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-8 text-center">
+                      <div className="flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="ml-2">Chargement des colis...</span>
+                      </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-
-          <div
-            className="py-1 text-center sticky bottom-0 bg-white border-t border-gray-200 z-20"
-            ref={salesEndRef}
-          ></div>
+                ) : filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                      Aucun colis trouvé
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map((order) => (
+                    <tr key={`order-${order.uid}`} className={`hover:${isDark ? "bg-gray-800" : "bg-gray-50"} cursor-pointer`}>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold">
+                        #{order.id}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                        {order.client?.full_name || "Inconnu"}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm hidden md:table-cell">
+                        {order.client?.city === "Antananarivo" ? order.client?.address : order.client?.coop}
+                      </td>
+                      <td className="px-4 py-4 text-sm hidden lg:table-cell">
+                        {Array.isArray(order.article)
+                          ? (order.article as any[])
+                              .filter((a): a is { price: number; quantity: number } =>
+                                a && typeof a === "object" && "price" in a && "quantity" in a
+                              )
+                              .map((a: { price: number; quantity: number }, idx: number, arr: any[]) => (
+                                <span key={idx}>
+                                  {a.price} × {a.quantity}
+                                  {idx < arr.length - 1 && " | "}
+                                </span>
+                              ))
+                          : null}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold">
+                        {formatNumber(String(order.total ?? ""))} Ar
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm hidden md:table-cell">
+                        Rivo
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                        <span className={`text-xs py-1 px-2 border-2 rounded-lg ${getStatusBadge(order.status).class}`}>
+                          {getStatusBadge(order.status).label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setOrderForm({
+                                client: {
+                                  full_name: order.client?.full_name || "",
+                                  city: order.client?.city || "",
+                                  address: order.client?.address || "",
+                                  contacts: order.client?.contacts || "",
+                                  coop: order.client?.coop || "",
+                                  payment: order.client?.payment || "",
+                                  fb_link: order.client?.fb_link || "",
+                                },
+                                client_id: order.client?.uid || "",
+                                article: order.article as any,
+                                total: order.total || 0,
+                                status: order.status || "En attente",
+                                comment: order.comment || "",
+                              });
+                              setEditingOrder(order.uid);
+                              setShowAddClient(true);
+                              setOrderModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(order.uid)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {loading ? (
+            <div className="col-span-full flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <span className="ml-2">Chargement des colis...</span>
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-gray-500">
+              Aucun colis trouvé
+            </div>
+          ) : (
+            filteredOrders.map((order) => (
+              <motion.div
+                key={`order-grid-${order.uid}`}
+                whileHover={{ y: -5 }}
+                className={`${baseClasses.card} rounded-xl shadow-sm p-4 border ${baseClasses.border}`}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-lg">#{order.id}</h3>
+                    <p className="text-sm text-gray-500">{order.client?.full_name}</p>
+                  </div>
+                  <span className={`text-xs py-1 px-2 border-2 rounded-lg ${getStatusBadge(order.status).class}`}>
+                    {getStatusBadge(order.status).label}
+                  </span>
+                </div>
 
-      {/* Add sale modal */}
-      {showModal && (
+                <div className="space-y-2 text-sm mb-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span>{order.client?.city === "Antananarivo" ? order.client?.address : order.client?.coop}</span>
+                  </div>
+                  <div className="font-semibold text-lg">
+                    {formatNumber(String(order.total ?? ""))} Ar
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-800">
+                  <button
+                    onClick={() => {
+                      setOrderForm({
+                        client: {
+                          full_name: order.client?.full_name || "",
+                          city: order.client?.city || "",
+                          address: order.client?.address || "",
+                          contacts: order.client?.contacts || "",
+                          coop: order.client?.coop || "",
+                          payment: order.client?.payment || "",
+                          fb_link: order.client?.fb_link || "",
+                        },
+                        client_id: order.client?.uid || "",
+                        article: order.article as any,
+                        total: order.total || 0,
+                        status: order.status || "En attente",
+                        comment: order.comment || "",
+                      });
+                      setEditingOrder(order.uid);
+                      setShowAddClient(true);
+                      setOrderModal(true);
+                    }}
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(order.uid)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            className={`${baseClasses.card} rounded-xl shadow-xl w-full max-w-md p-6`}
           >
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold">Creer une vente</h3>
-                <button
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Product Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Titre du vente
-                </label>
-                <input
-                  type="text"
-                  value={saleData.title}
-                  onChange={(e) =>
-                    setSaleData({ ...saleData, title: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={saleData.description}
-                  onChange={(e) =>
-                    setSaleData({ ...saleData, description: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  rows={2}
-                  required
-                />
-              </div>
-              {/*Produit */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Produit
-                </label>
-                <select
-                  value={saleData.product}
-                  onChange={(e) => {
-                    setSaleData({ ...saleData, product: e.target.value });
-                    setSelectedProduct(
-                      products.find((p) => p.id === e.target.value) || null
-                    );
-                  }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">-- Choisir un produit --</option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Quantity and Type */}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type de vente
-                  </label>
-                  <select
-                    value={saleData.type}
-                    onChange={(e) =>
-                      setSaleData({ ...saleData, type: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">-- Choisir un type --</option>
-                    <option value="Live">Live</option>
-                    <option value="Photo">Photo</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantité
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={saleData.quantity || ""}
-                    onChange={(e) =>
-                      setSaleData({
-                        ...saleData,
-                        quantity: Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder={
-                      selectedProduct
-                        ? `Quantite du produit : ${selectedProduct.quantity}`
-                        : "Quantity"
-                    }
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Prices */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Prix
-                </label>
-                {/* Champs de prix dynamiques */}
-                {saleData.prices.map((price, idx) => (
-                  <div
-                    className="flex gap-2 items-center mb-2 relative"
-                    key={idx}
-                  >
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                      Ar
-                    </span>
-                    <input
-                      type="number"
-                      value={price === 0 ? "" : price}
-                      min={0}
-                      onChange={(e) => {
-                        const newPrices = [...saleData.prices];
-                        newPrices[idx] =
-                          e.target.value === ""
-                            ? 0
-                            : parseFloat(e.target.value);
-                        setSaleData({ ...saleData, prices: newPrices });
-                      }}
-                      className="flex-1 w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder={`Prix #${idx + 1}`}
-                    />
-                    {saleData.prices.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newPrices = [...saleData.prices];
-                          newPrices.splice(idx, 1);
-                          setSaleData({ ...saleData, prices: newPrices });
-                        }}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                        title="Supprimer ce prix"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {/* Bouton pour ajouter un champ prix supplémentaire */}
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSaleData({
-                        ...saleData,
-                        prices: [...saleData.prices, 0],
-                      });
-                    }}
-                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors mt-1"
-                  >
-                    <Plus className="w-5 h-5 mr-1" />
-                    Ajouter un prix
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveSale}
-                  disabled={!saleData.title || !saleData.description}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                >
-                  <span>Enregister</span>
-                </button>
-              </div>
+            <h3 className="text-xl font-semibold mb-4">Confirmer la suppression</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => handleDeleteOrder(showDeleteConfirm)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Supprimer
+              </button>
             </div>
           </motion.div>
         </div>
       )}
 
+      {/* Order Modal */}
       {orderModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            className={`${baseClasses.card} rounded-xl shadow-xl w-full max-w-2xl my-8`}
           >
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold">
-                  {editingOrder
-                    ? `Modifier une commande`
-                    : `Créer une commande`}
+                  {editingOrder ? `Modifier une commande` : `Créer une commande`}
                 </h3>
                 <button
                   onClick={() => {
@@ -987,8 +645,7 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* client */}
+            <div className="p-6 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
               {!editingOrder && (
                 <div>
                   <div className="flex gap-2">
@@ -997,29 +654,20 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                         type="text"
                         placeholder="Rechercher un client..."
                         value={searchClient}
-                        onChange={(e) => {
-                          setSearchClient(e.target.value);
-                        }}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        onChange={(e) => setSearchClient(e.target.value)}
+                        className={`w-full px-4 py-2 border ${baseClasses.border} rounded-lg focus:ring-2 focus:ring-blue-500 ${baseClasses.input}`}
                       />
                       {searchClient && (
-                        <div className="absolute z-10 bg-white border border-gray-200 rounded shadow mt-1 w-full max-h-40 overflow-y-auto">
+                        <div className={`absolute z-10 ${baseClasses.card} border ${baseClasses.border} rounded shadow mt-1 w-full max-h-40 overflow-y-auto`}>
                           {clients
                             .filter((client) =>
-                              client.full_name
-                                ?.toLowerCase()
-                                .includes(searchClient.toLowerCase())
+                              client.full_name?.toLowerCase().includes(searchClient.toLowerCase())
                             )
                             .map((client) => (
                               <div
                                 key={client.uid}
-                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                                 onClick={() => {
-                                  setOrderForm({
-                                    ...orderForm,
-                                    client_id: client.uid,
-                                  });
-                                  setSearchClient("");
                                   setOrderForm({
                                     client: {
                                       full_name: client.full_name || "",
@@ -1036,6 +684,7 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                                     status: "En attente",
                                     comment: "",
                                   });
+                                  setSearchClient("");
                                   setShowAddClient(true);
                                 }}
                               >
@@ -1043,9 +692,7 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                               </div>
                             ))}
                           {clients.filter((client) =>
-                            client.full_name
-                              ?.toLowerCase()
-                              .includes(searchClient.toLowerCase())
+                            client.full_name?.toLowerCase().includes(searchClient.toLowerCase())
                           ).length === 0 && (
                             <div className="px-4 py-2 text-gray-500">
                               Aucun client trouvé
@@ -1056,23 +703,20 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                     </div>
                     <button
                       type="button"
-                      className="flex items-center px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                      className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                       onClick={() => setShowAddClient(true)}
                     >
                       <UserPlus className="w-5 h-5 mr-1" />
-                      Nouveau client
+                      <span className="hidden sm:inline">Nouveau client</span>
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Modal pour ajouter un nouveau client */}
               {showAddClient && (
                 <div className={`${!editingOrder ? "mt-6" : ""}`}>
                   <div className="space-y-4">
-                    <div
-                      className={`p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border ${baseClasses.border}`}
-                    >
+                    <div className={`p-3 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"} border ${baseClasses.border}`}>
                       <div className="flex justify-between items-start mb-3">
                         {editingOrder ? (
                           <>
@@ -1081,10 +725,8 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                             </h6>
                             <button
                               type="button"
-                              onClick={() => {
-                                setEditingClient(orderForm.client_id);
-                              }}
-                              className="text-blue-500 hover:text-red-700"
+                              onClick={() => setEditingClient(orderForm.client_id)}
+                              className="text-blue-500 hover:text-blue-700"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
@@ -1148,29 +790,10 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                               required
                             />
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium mb-1">
-                              Adresse ou repere
-                            </label>
-                            <input
-                              type="text"
-                              value={orderForm.client.address}
-                              onChange={(e) =>
-                                setOrderForm({
-                                  ...orderForm,
-                                  client: {
-                                    ...orderForm.client,
-                                    address: e.target.value,
-                                  },
-                                })
-                              }
-                              className={`w-full px-3 py-1.5 text-sm rounded-lg ${baseClasses.input} border ${baseClasses.border}`}
-                            />
-                          </div>
 
                           <div>
                             <label className="block text-xs font-medium mb-1">
-                              ville
+                              Ville
                             </label>
                             <input
                               type="text"
@@ -1188,32 +811,51 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                             />
                           </div>
 
-                          {orderForm.client.city &&
-                            orderForm.client.city !== "Antananarivo" && (
-                              <div className="md:col-span-2">
-                                <label className="block text-xs font-medium mb-1">
-                                  Coop
-                                </label>
-                                <input
-                                  type="text"
-                                  value={orderForm.client.coop}
-                                  onChange={(e) =>
-                                    setOrderForm({
-                                      ...orderForm,
-                                      client: {
-                                        ...orderForm.client,
-                                        coop: e.target.value,
-                                      },
-                                    })
-                                  }
-                                  className={`w-full px-3 py-1.5 text-sm rounded-lg ${baseClasses.input} border ${baseClasses.border}`}
-                                />
-                              </div>
-                            )}
+                          <div>
+                            <label className="block text-xs font-medium mb-1">
+                              Adresse ou repère
+                            </label>
+                            <input
+                              type="text"
+                              value={orderForm.client.address}
+                              onChange={(e) =>
+                                setOrderForm({
+                                  ...orderForm,
+                                  client: {
+                                    ...orderForm.client,
+                                    address: e.target.value,
+                                  },
+                                })
+                              }
+                              className={`w-full px-3 py-1.5 text-sm rounded-lg ${baseClasses.input} border ${baseClasses.border}`}
+                            />
+                          </div>
+
+                          {orderForm.client.city && orderForm.client.city !== "Antananarivo" && (
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-medium mb-1">
+                                Coop
+                              </label>
+                              <input
+                                type="text"
+                                value={orderForm.client.coop}
+                                onChange={(e) =>
+                                  setOrderForm({
+                                    ...orderForm,
+                                    client: {
+                                      ...orderForm.client,
+                                      coop: e.target.value,
+                                    },
+                                  })
+                                }
+                                className={`w-full px-3 py-1.5 text-sm rounded-lg ${baseClasses.input} border ${baseClasses.border}`}
+                              />
+                            </div>
+                          )}
 
                           <div className="md:col-span-2">
                             <label className="block text-xs font-medium mb-1">
-                              payement
+                              Paiement
                             </label>
                             <input
                               type="text"
@@ -1258,17 +900,16 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                 </div>
               )}
 
-              <div className="p-3 rounded-lg bg-white dark:bg-gray-800 border">
+              <div className={`p-3 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"} border ${baseClasses.border}`}>
                 <div className="flex justify-between items-center mb-3">
                   <h6 className="text-sm font-medium">Articles</h6>
                 </div>
 
-                {/* Liste des articles */}
                 <div className="mt-4 space-y-2">
                   {orderForm.article.map((art, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between px-3 py-2 rounded-lg border bg-gray-50 dark:bg-gray-900"
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg border ${baseClasses.border} ${isDark ? "bg-gray-900" : "bg-white"}`}
                     >
                       <span>
                         {art.price} Ar × {art.quantity}
@@ -1291,7 +932,6 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                             });
                           }}
                           className="text-red-500 hover:text-red-700 mr-2"
-                          title="Supprimer l'article"
                         >
                           <Minus className="w-4 h-4" />
                         </button>
@@ -1308,7 +948,6 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                             });
                           }}
                           className="text-green-500 hover:text-green-700 mr-2"
-                          title="Incrémenter la quantité"
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -1324,8 +963,7 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                   ))}
                 </div>
 
-                {/* Inputs d'ajout */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 mb-3">
                   <div>
                     <label className="block text-xs font-medium mb-1">
                       Prix
@@ -1334,11 +972,9 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                       type="number"
                       value={newPrice}
                       onChange={(e) =>
-                        setNewPrice(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setNewPrice(e.target.value === "" ? "" : Number(e.target.value))
                       }
-                      className="w-full px-3 py-1.5 text-sm rounded-lg border"
+                      className={`w-full px-3 py-1.5 text-sm rounded-lg border ${baseClasses.border} ${baseClasses.input}`}
                     />
                   </div>
 
@@ -1350,9 +986,7 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                       type="number"
                       value={newQty}
                       onChange={(e) =>
-                        setNewQty(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setNewQty(e.target.value === "" ? "" : Number(e.target.value))
                       }
                       disabled={!newPrice}
                       onKeyDown={(e) => {
@@ -1360,12 +994,11 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                           addArticle();
                         }
                       }}
-                      className="w-full px-3 py-1.5 text-sm rounded-lg border"
+                      className={`w-full px-3 py-1.5 text-sm rounded-lg border ${baseClasses.border} ${baseClasses.input}`}
                     />
                   </div>
                 </div>
 
-                {/* Bouton ajouter */}
                 <button
                   type="button"
                   onClick={addArticle}
@@ -1375,9 +1008,8 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                 </button>
               </div>
 
-              {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-1">
                   Commentaire
                 </label>
                 <textarea
@@ -1385,30 +1017,28 @@ export const PackagesManagement: React.FC<PackagesManagementProps> = ({
                   onChange={(e) =>
                     setOrderForm({ ...orderForm, comment: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className={`w-full px-4 py-2 border ${baseClasses.border} rounded-lg focus:ring-2 focus:ring-blue-500 ${baseClasses.input}`}
                   rows={2}
-                  required
                 />
               </div>
 
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
                 <button
                   type="button"
                   onClick={() => {
                     setOrderModal(false);
                     resetForm();
                   }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
                 >
                   Annuler
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveOrder}
-                  // disabled={!saleData.title || !saleData.description}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  <span>Enregister</span>
+                  <span>Enregistrer</span>
                 </button>
               </div>
             </div>

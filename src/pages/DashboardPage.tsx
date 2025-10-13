@@ -50,14 +50,14 @@ export const DashboardPage: React.FC = () => {
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const baseClasses = {
-    background: isDark ? "bg-[#1B365D]" : "bg-gray-50",
-    sidebar: isDark ? "bg-[#142845]" : "bg-white",
-    card: isDark ? "bg-[#1D4275]" : "bg-white",
-    border: isDark ? "border-[#2A5A9C]" : "border-gray-200",
-    text: isDark ? "text-[#F0F8FF]" : "text-gray-900",
-    input: isDark ? "bg-[#2A5A9C] text-[#F0F8FF]" : "bg-gray-50 text-gray-900",
-    accent: "bg-[#4A90E2] text-white",
-    yellow: "bg-[#fff224] text-[#1B365D]",
+    background: isDark ? "bg-black" : "bg-gray-50",
+    sidebar: isDark ? "bg-gray-950" : "bg-white",
+    card: isDark ? "bg-gray-900" : "bg-white",
+    border: isDark ? "border-gray-800" : "border-gray-200",
+    text: isDark ? "text-gray-100" : "text-gray-900",
+    input: isDark ? "bg-gray-800 text-gray-100" : "bg-gray-50 text-gray-900",
+    accent: "bg-blue-600 text-white hover:bg-blue-700",
+    yellow: "bg-yellow-400 text-black",
   };
 
   const menuItems = [
@@ -201,7 +201,7 @@ export const DashboardPage: React.FC = () => {
       {/* Top Navigation */}
       <div
         className={`${
-          isDark ? "bg-[#111827] border-gray-800" : "bg-white border-gray-200"
+          isDark ? "bg-black border-gray-800" : "bg-white border-gray-200"
         } border-b sticky top-0 z-50`}
       >
         <div className="max-w-[1920px] mx-7 px-4">
@@ -312,8 +312,8 @@ export const DashboardPage: React.FC = () => {
       <div className="flex">
         {/* Sidebar */}
         <div
-          className={`fixed left-0 z-50 group flex flex-col h-screen w-16 hover:w-52 
-              bg-white dark:bg-gray-900 transition-all duration-300 
+          className={`fixed left-0 z-50 group flex flex-col h-screen w-16 hover:w-52
+              bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 transition-all duration-300
               overflow-hidden`}
         >
           <div className="flex-1 space-y-1 p-2">
@@ -325,8 +325,8 @@ export const DashboardPage: React.FC = () => {
           ${
             activeSection === item.id
               ? isDark
-                ? "bg-indigo-900 text-indigo-100"
-                : "bg-indigo-100 text-indigo-900"
+                ? "bg-blue-600 text-white"
+                : "bg-blue-100 text-blue-900"
               : isDark
               ? "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
               : "text-gray-700 hover:bg-gray-100"

@@ -174,28 +174,39 @@ export const AuthPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen from-indigo-100 via-purple-50 to-pink-100">
-      {/* <Header /> */}
-      <div className="flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
+      <div className="flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="w-full max-w-md"
         >
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <div className="px-8 pt-8">
+          <div className="bg-white dark:bg-black rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
+            <div className="px-6 sm:px-8 pt-8">
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
                 className="text-center mb-8"
               >
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                <div className="flex justify-center mb-4">
+                  <img
+                    src="/LLogo_light.png"
+                    alt="Lamody Logo"
+                    className="h-16 w-auto dark:hidden"
+                  />
+                  <img
+                    src="/LLogo_dark.png"
+                    alt="Lamody Logo"
+                    className="h-16 w-auto hidden dark:block"
+                  />
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   Bienvenue sur Lamody H&H
                 </h1>
-                <p className="text-gray-600 mt-2">
-                  {isSignUp ? 'Create your account' : 'Sign in to your account'}
+                <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm sm:text-base">
+                  {isSignUp ? 'Créez votre compte' : 'Connectez-vous à votre compte'}
                 </p>
               </motion.div>
 
@@ -204,56 +215,56 @@ export const AuthPage: React.FC = () => {
                 <button
                   onClick={handleGoogleSignIn}
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 text-gray-700 dark:text-gray-200 font-medium"
                 >
                   <img
                     src="https://www.google.com/favicon.ico"
                     alt="Google"
                     className="w-5 h-5 mr-3"
                   />
-                  Continue with Google
+                  Continuer avec Google
                 </button>
               </div>
 
               <div className="relative mb-6">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
+                  <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                  <span className="px-2 bg-white dark:bg-black text-gray-500 dark:text-gray-400">Ou continuer avec</span>
                 </div>
               </div>
             </div>
 
-            <div className="p-8">
+            <div className="p-6 sm:p-8">
               <form onSubmit={handleSubmit} className="space-y-4">
                 {error && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-red-50 text-red-600 p-3 rounded-lg text-sm"
+                    className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm border border-red-200 dark:border-red-800"
                   >
                     {error}
                   </motion.div>
                 )}
                 {isSignUp && (
                   <div>
-                    <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                      Username
+                    <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nom d'utilisateur
                     </label>
                     <input
                       id="username"
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-                      placeholder="Enter your username"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                      placeholder="Entrez votre nom d'utilisateur"
                       required
                     />
                   </div>
                 )}
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Email
                   </label>
                   <input
@@ -261,39 +272,39 @@ export const AuthPage: React.FC = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-                    placeholder="Enter your email"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    placeholder="Entrez votre email"
                     required
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Mot de passe
                   </label>
                   <input
                     id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-                    placeholder="Enter your password"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    placeholder="Entrez votre mot de passe"
                     required
                   />
                 </div>
 
                 {isSignUp && (
                   <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                      Confirm Password
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Confirmer le mot de passe
                     </label>
                     <input
                       id="confirmPassword"
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-                      placeholder="Confirm your password"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                      placeholder="Confirmez votre mot de passe"
                       required
                     />
                   </div>
@@ -302,17 +313,17 @@ export const AuthPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className={`w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors ${
+                  className={`w-full bg-blue-600 dark:bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all font-medium shadow-lg hover:shadow-xl ${
                     isLoading ? 'opacity-75 cursor-not-allowed' : ''
                   }`}
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center">
                       <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
-                      Processing...
+                      Traitement...
                     </span>
                   ) : (
-                    isSignUp ? 'Create Account' : 'Sign In'
+                    isSignUp ? 'Créer un compte' : 'Se connecter'
                   )}
                 </button>
 
@@ -323,25 +334,25 @@ export const AuthPage: React.FC = () => {
                       setIsSignUp(!isSignUp);
                       resetForm();
                     }}
-                    className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors font-medium"
                   >
                     {isSignUp
-                      ? 'Already have an account? Sign in'
-                      : "Don't have an account? Sign up"}
+                      ? 'Vous avez déjà un compte ? Se connecter'
+                      : "Vous n'avez pas de compte ? S'inscrire"}
                   </button>
                 </div>
               </form>
             </div>
 
-            <div className="bg-gray-50 px-6 py-4 text-center">
-              <p className="text-sm text-gray-600">
-                By continuing, you agree to our{' '}
-                <a href="#" className="text-indigo-600 hover:text-indigo-800">
-                  Terms of Service
+            <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 text-center border-t border-gray-200 dark:border-gray-800">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                En continuant, vous acceptez nos{' '}
+                <a href="#" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">
+                  Conditions d'utilisation
                 </a>{' '}
-                and{' '}
-                <a href="#" className="text-indigo-600 hover:text-indigo-800">
-                  Privacy Policy
+                et notre{' '}
+                <a href="#" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">
+                  Politique de confidentialité
                 </a>
               </p>
             </div>
