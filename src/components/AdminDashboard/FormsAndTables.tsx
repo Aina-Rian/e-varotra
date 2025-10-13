@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  X
+  X,
+  User
 } from 'lucide-react';
 
 interface FormsAndTablesProps {

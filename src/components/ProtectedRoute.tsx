@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useRoles } from '../hooks/useRoles';
@@ -88,7 +88,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         return;
       }
 
-      if (requireModerator && role !== 'admin') {
+      if (requireModerator && role !== 'moderator' && role !== 'admin') {
         console.log("User is not moderator or admin, redirecting from", location.pathname);
         navigate('/', { replace: true });
         return;

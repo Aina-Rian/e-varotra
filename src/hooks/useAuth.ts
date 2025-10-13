@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-  import type { User } from '@supabase/supabase-js';
-  import { supabase } from '../lib/supabase';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -69,7 +69,7 @@ export function useAuth() {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (username: string, email: string, password: string) => {
     try {
       setError(null);
       setLoading(true);
@@ -81,8 +81,8 @@ export function useAuth() {
       password: password,
       options: {
         data: {
-          full_name: email.split('@')[0],
-          role: 'attendee'
+          full_name: username,
+          username: username
         }
       }
     });
@@ -105,41 +105,21 @@ export function useAuth() {
     console.log("authData.user.id", authData.user.id);
     console.log("session", session);
 
-    const { data: profileData, error: profileError2 } = await supabase
-      .from('user_profiles')
-      .insert([
-        {
-          user_id: authData.user.id,
-          full_name: email.split('@')[0],
-          role: 'attendee', 
-          is_default: true
-        }
-      ])
-      .select()
-      .single();
-
-    if (profileError2) {
-      addLog(`Error creating profile: ${profileError2.message}`);
-      throw profileError2;
-    }
-
     const { error: profileError } = await supabase
       .from('users')
-      .update({
-        email: email, // Explicitly include email
-        full_name: email.split('@')[0],
-        role: 'attendee',
-        profile_id: profileData.id
-      })
-      .eq('id', authData.user.id);
-
-    console.log("profileError", profileError);
+      .insert([
+        {
+          id: userId,
+          email: email,
+          username: username,
+          role: 'liver'
+        }
+      ]);
     if (profileError) {
       await supabase.auth.signOut();
       console.log('profileError', profileError);
       throw profileError;
     }
-
       setUser(authData.user);
       return authData;
     } catch (err) {

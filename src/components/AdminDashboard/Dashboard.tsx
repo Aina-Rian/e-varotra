@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
+  UsersRound, 
   Calendar, 
   Layout, 
   MessageSquare, 
@@ -11,10 +12,11 @@ import {
   RefreshCw,
   Edit2,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Package
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 
 interface DashboardProps {
   isDark: boolean;
@@ -32,12 +34,12 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => {
   const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalEvents: 0,
-    activeEvents: 0,
-    totalSessions: 0,
-    pendingQuestions: 0,
-    totalRegistrations: 0
+    totalClients: 0,
+    totalProducts: 0,
+    totalSales: 0,
+    newClients: 0,
+    totalPackages: 0,
+    daySales: 0
   });
   const [loading, setLoading] = useState(true);
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
@@ -56,45 +58,48 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
     try {
       setLoading(true);
       
-      // Fetch total users
-      const { count: userCount, error: userError } = await supabase
-        .from('users')
+      // Fetch total client
+      const { count: clientCount, error: userError } = await supabase
+        .from('clients')
         .select('*', { count: 'exact', head: true });
       
-      // Fetch total events
-      const { count: eventCount, error: eventError } = await supabase
-        .from('events')
-        .select('*', { count: 'exact', head: true });
-      
-      // Fetch active events
-      const { count: activeEventCount, error: activeEventError } = await supabase
-        .from('events')
+      // Fetch total available products
+      const { count: ProductCount, error: eventError } = await supabase
+        .from('products')
         .select('*', { count: 'exact', head: true })
-        .in('status', ['published', 'live']);
+        .eq('in_stock', true);
+      
+      // Fetch new clients
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { count: newClientsCount, error: newClientsError } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', today.toISOString());
       
       // Fetch total sessions
-      const { count: sessionCount, error: sessionError } = await supabase
-        .from('sessions')
-        .select('*', { count: 'exact', head: true });
+      // const { count: sessionCount, error: sessionError } = await supabase
+      //   .from('sessions')
+      //   .select('*', { count: 'exact', head: true });
       
-      // Fetch pending questions
-      const { count: questionCount, error: questionError } = await supabase
-        .from('session_questions')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
+      // // Fetch pending questions
+      // const { count: questionCount, error: questionError } = await supabase
+      //   .from('session_questions')
+      //   .select('*', { count: 'exact', head: true })
+      //   .eq('status', 'pending');
       
-      // Fetch total registrations
-      const { count: registrationCount, error: registrationError } = await supabase
-        .from('event_registrations')
-        .select('*', { count: 'exact', head: true });
+      // // Fetch total registrations
+      // const { count: registrationCount, error: registrationError } = await supabase
+      //   .from('event_registrations')
+      //   .select('*', { count: 'exact', head: true });
       
       setStats({
-        totalUsers: userCount || 0,
-        totalEvents: eventCount || 0,
-        activeEvents: activeEventCount || 0,
-        totalSessions: sessionCount || 0,
-        pendingQuestions: questionCount || 0,
-        totalRegistrations: registrationCount || 0
+        totalClients: clientCount || 0,
+        totalProducts: ProductCount || 0,
+        totalSales: 0, 
+        newClients: newClientsCount || 0,
+        totalPackages: 0,
+        daySales: 0
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -304,10 +309,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
 
   return (
     <div className="space-y-6">
+      <Toaster position="top-right" reverseOrder={false} />
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold">Tableau de bord de Gestion</h1>
           <p className="text-gray-500 dark:text-gray-400">Bienvenue dans le tableau de bord</p>
         </div>
         <div className="flex items-center space-x-3">
@@ -322,11 +328,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
             className="flex items-center px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            Actualiser
           </button>
           <button className={`flex items-center px-4 py-2 rounded-lg ${baseClasses.accent}`}>
             <Plus className="w-4 h-4 mr-2" />
-            New Report
+            Creer un Rapport
           </button>
         </div>
       </div>
@@ -339,8 +345,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.totalUsers}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Clients Total</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.totalClients}</h3>
               <p className="text-xs text-green-500 mt-1 flex items-center">
                 <ArrowUpRight className="w-3 h-3 mr-1" />
                 12% increase
@@ -358,15 +364,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Active Events</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.activeEvents}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Produits Disponible</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.totalProducts}</h3>
               <p className="text-xs text-green-500 mt-1 flex items-center">
                 <ArrowUpRight className="w-3 h-3 mr-1" />
                 8% increase
               </p>
             </div>
             <div className={`p-3 rounded-lg ${isDark ? 'bg-purple-900/30' : 'bg-purple-100'}`}>
-              <Calendar className={`w-6 h-6 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+              <Package className={`w-6 h-6 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
             </div>
           </div>
         </motion.div>
@@ -377,15 +383,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Sessions</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.totalSessions}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Ventes Total</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.totalSales}</h3>
               <p className="text-xs text-green-500 mt-1 flex items-center">
                 <ArrowUpRight className="w-3 h-3 mr-1" />
                 15% increase
               </p>
             </div>
             <div className={`p-3 rounded-lg ${isDark ? 'bg-green-900/30' : 'bg-green-100'}`}>
-              <Layout className={`w-6 h-6 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+              <Calendar className={`w-6 h-6 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
             </div>
           </div>
         </motion.div>
@@ -396,15 +402,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Pending Questions</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.pendingQuestions}</h3>
-              <p className="text-xs text-yellow-500 mt-1 flex items-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Nouveau Clients</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.newClients}</h3>
+              <p className="text-xs text-green-500 mt-1 flex items-center">
+                <ArrowUpRight className="w-3 h-3 mr-1" />
+                15% increase
+              </p>
+              {/* <p className="text-xs text-yellow-500 mt-1 flex items-center">
                 <AlertCircle className="w-3 h-3 mr-1" />
                 Needs attention
-              </p>
+              </p> */}
             </div>
             <div className={`p-3 rounded-lg ${isDark ? 'bg-yellow-900/30' : 'bg-yellow-100'}`}>
-              <MessageSquare className={`w-6 h-6 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+              <UsersRound className={`w-6 h-6 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
             </div>
           </div>
         </motion.div>
@@ -415,8 +425,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Events</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.totalEvents}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Colis Total</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.totalPackages}</h3>
               <p className="text-xs text-green-500 mt-1 flex items-center">
                 <ArrowUpRight className="w-3 h-3 mr-1" />
                 5% increase
@@ -434,8 +444,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Registrations</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.totalRegistrations}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Ventes effectue aujourd'hui</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.daySales}</h3>
               <p className="text-xs text-green-500 mt-1 flex items-center">
                 <ArrowUpRight className="w-3 h-3 mr-1" />
                 18% increase
@@ -454,9 +464,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         <div className={`${baseClasses.card} rounded-xl shadow-sm border ${baseClasses.border} overflow-hidden`}>
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Recent Users</h3>
+              <h3 className="text-lg font-semibold">Clients Aujourd'hui</h3>
               <button className="text-sm text-vibees-accent hover:underline">
-                View All
+                Tout voir
               </button>
             </div>
           </div>
@@ -464,13 +474,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
             <table className="w-full">
               <thead className={isDark ? 'bg-[#142845]' : 'bg-gray-50'}>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telephone</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lieu</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Achats</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {/* <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {recentUsers.map((user) => (
                   <tr key={user.id} className={`hover:${isDark ? 'bg-[#142845]' : 'bg-gray-50'}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -508,7 +518,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
                     </td>
                   </tr>
                 ))}
-              </tbody>
+              </tbody> */}
             </table>
           </div>
         </div>
@@ -517,9 +527,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         <div className={`${baseClasses.card} rounded-xl shadow-sm border ${baseClasses.border} overflow-hidden`}>
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Recent Events</h3>
+              <h3 className="text-lg font-semibold">Ventes Aujourd'hui</h3>
               <button className="text-sm text-vibees-accent hover:underline">
-                View All
+                Tout Voir
               </button>
             </div>
           </div>
@@ -527,13 +537,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
             <table className="w-full">
               <thead className={isDark ? 'bg-[#142845]' : 'bg-gray-50'}>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendees</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Article</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendus</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {/* <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {recentEvents.map((event) => (
                   <tr key={event.id} className={`hover:${isDark ? 'bg-[#142845]' : 'bg-gray-50'}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -574,7 +584,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
                     </td>
                   </tr>
                 ))}
-              </tbody>
+              </tbody> */}
             </table>
           </div>
         </div>
@@ -584,7 +594,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
       <div className={`${baseClasses.card} rounded-xl shadow-sm border ${baseClasses.border} overflow-hidden`}>
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Content Moderation</h3>
+            <h3 className="text-lg font-semibold">Tâches à faire</h3>
             <div className="flex space-x-2">
               <button 
                 onClick={() => setActiveTab('all')}
@@ -594,7 +604,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                 }`}
               >
-                All
+                Tout
               </button>
               <button 
                 onClick={() => setActiveTab('pending')}
@@ -604,17 +614,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                 }`}
               >
-                Pending
+                En Attente
               </button>
               <button 
                 onClick={() => setActiveTab('flagged')}
                 className={`px-3 py-1 text-sm rounded-lg ${
                   activeTab === 'flagged' 
-                    ? 'bg-red-500 text-white' 
+                    ? 'bg-green-500 text-white' 
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                 }`}
               >
-                Flagged
+                Terminé
               </button>
             </div>
           </div>
@@ -624,7 +634,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
             {contentItems.length === 0 ? (
               <div className="text-center py-8">
                 <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No content items to moderate</p>
+                <p className="text-gray-500">Pas de tâches disponibles</p>
               </div>
             ) : (
               contentItems
@@ -707,50 +717,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
       {/* System Status */}
       <div className={`${baseClasses.card} rounded-xl shadow-sm border ${baseClasses.border}`}>
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold">System Status</h3>
+          <h3 className="text-lg font-semibold">Rapport du jour</h3>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className={`p-4 rounded-lg ${isDark ? 'bg-[#142845]' : 'bg-gray-50'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium">API Status</h4>
-                <span className="flex items-center text-green-500">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                  Operational
-                </span>
+              <div className="flex items-center justify-between mb-2 border-b">
+                <h2 className="font-semibold">Clients</h2>
               </div>
-              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500" style={{ width: '98%' }}></div>
+               <div className="text-center py-8">
+                <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">Pas de remarques</p>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">98% uptime in last 30 days</p>
             </div>
 
             <div className={`p-4 rounded-lg ${isDark ? 'bg-[#142845]' : 'bg-gray-50'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium">Database</h4>
-                <span className="flex items-center text-green-500">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                  Operational
-                </span>
+              <div className="flex items-center justify-between mb-2 border-b">
+                <h2 className="font-semibold">Ventes</h2>
               </div>
-              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500" style={{ width: '99.9%' }}></div>
+               <div className="text-center py-8">
+                <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">Pas de remarques</p>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">99.9% uptime in last 30 days</p>
             </div>
 
             <div className={`p-4 rounded-lg ${isDark ? 'bg-[#142845]' : 'bg-gray-50'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium">Storage</h4>
-                <span className="flex items-center text-yellow-500">
-                  <span className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></span>
-                  Degraded
-                </span>
+              <div className="flex items-center justify-between mb-2 border-b">
+                <h4 className="font-medium">Livraison</h4>
               </div>
-              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-full bg-yellow-500" style={{ width: '94%' }}></div>
+               <div className="text-center py-8">
+                <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">Pas de remarques</p>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">94% uptime in last 30 days</p>
             </div>
           </div>
         </div>
