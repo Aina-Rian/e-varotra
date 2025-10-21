@@ -7,6 +7,9 @@ import { Header } from '../components/Header';
 import { Loader2 } from 'lucide-react';
 import { signInWithGoogle, signInWithLinkedIn, supabase } from '../lib/supabase';
 import { useTranslation } from 'react-i18next';
+import { Database } from '../types/supabase';
+
+type User = Database['public']['Tables']['users']['Row'];
 
 export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
@@ -23,29 +26,41 @@ export const AuthPage: React.FC = () => {
 
   useEffect(() => {
     if (user && !roleLoading) {
-      redirectBasedOnRole(role);
+      console.log("User is logged in with role:", user.role);
+      redirectBasedOnRole(user.id);
     }
   }, [user, role, roleLoading, navigate]);
 
-  const redirectBasedOnRole = (userRole: string | null) => {
-    console.log("Redirecting based on role:", userRole);
-    
-    switch(userRole) {
-      case 'admin':
-        navigate('/admin', { replace: true });
-        break;
-      case 'organizer':
-        navigate('/admin', { replace: true });
-        break;
-      case 'moderator':
-        navigate('/moderator', { replace: true });
-        break;
-      case 'attendee':
-        navigate('/attendee/program', { replace: true });
-        break;
-      default:
-        navigate('/', { replace: true });
-    }
+  const redirectBasedOnRole = (userId: string | null) => {
+    console.log("Redirecting based on role:", userId);
+
+    supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error fetching user role for redirection:", error);
+          return;
+        }
+
+        const userRole = data?.role;
+
+        switch(userRole) {
+          case 'admin':
+            navigate('/', { replace: true });
+            break;
+          case 'liver':
+            navigate('/', { replace: true });
+            break;
+          case 'deliver':
+            navigate('/delivery', { replace: true });
+            break;
+          default:
+            navigate('/', { replace: true });
+        }
+      });
   };
 
   const validateForm = () => {

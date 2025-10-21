@@ -182,7 +182,7 @@ export type Database = {
           position: string | null
           bio: string | null
           avatar_url: string | null
-          role: 'attendee' | 'exhibitor' | 'speaker' | 'organizer' | 'admin'
+          role: 'liver' | 'visitor' | 'deliver' | 'admin'
           interests: string[]
           social_links: Json | null
           profile_id: string | null
@@ -198,7 +198,7 @@ export type Database = {
           position?: string | null
           bio?: string | null
           avatar_url?: string | null
-          role?: 'attendee' | 'exhibitor' | 'speaker' | 'organizer' | 'admin'
+          role?: 'liver' | 'visitor' | 'deliver' | 'admin'
           interests?: string[]
           social_links?: Json | null
           profile_id?: string | null
@@ -214,7 +214,7 @@ export type Database = {
           position?: string | null
           bio?: string | null
           avatar_url?: string | null
-          role?: 'attendee' | 'exhibitor' | 'speaker' | 'organizer' | 'admin'
+          role?: 'liver' | 'visitor' | 'deliver' | 'admin'
           interests?: string[]
           social_links?: Json | null
           profile_id?: string | null
