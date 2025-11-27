@@ -255,7 +255,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isDark, 
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Clients</p>
               <h3 className="text-2xl font-bold mt-1">{getTotalUsers()}</h3>
               <p className="text-xs text-green-500 mt-1 flex items-center">
                 <ArrowUpRight className="w-3 h-3 mr-1" />
@@ -274,7 +274,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isDark, 
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Events</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Ventes</p>
               <h3 className="text-2xl font-bold mt-1">{stats.eventAttendance.length}</h3>
               <p className="text-xs text-green-500 mt-1 flex items-center">
                 <ArrowUpRight className="w-3 h-3 mr-1" />

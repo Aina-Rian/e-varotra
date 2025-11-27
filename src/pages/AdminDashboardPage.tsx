@@ -13,10 +13,13 @@ import {
   MessageSquare,
   PieChart,
   Users,
+  User,
   Home,
   History,
   Tag,
-  Receipt
+  Receipt,
+  Download,
+  Upload
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { supabase } from "../lib/supabase";
@@ -26,19 +29,24 @@ import { useAuth } from "../hooks/useAuth";
 import { Notifications } from "../components/Notications";
 
 // Import the separated components
-import Dashboard from "../components/AdminDashboard/Dashboard";
-import ClientsManagement from "../components/AdminDashboard/ClientsManagement";
+import Dashboard from "../components/Dashboard";
+import ClientsManagement from "../components/ClientsManagement";
 import SalesManagement from "../components/AdminDashboard/SalesManagement";
+import EmployeesManagement from "../components/AdminDashboard/EmployeesManagement";
 import PackagesManagement from "../components/AdminDashboard/PackagesManagement";
 import ProductsManagement from "../components/AdminDashboard/ProductsManagement";
-import ModerationPanel from "../components/AdminDashboard/ModerationPanel";
-import ComponentsLibrary from "../components/AdminDashboard/ComponentsLibrary";
+// import ModerationPanel from "../components/AdminDashboard/ModerationPanel";
+// import ComponentsLibrary from "../components/AdminDashboard/ComponentsLibrary";
 import FormsAndTables from "../components/AdminDashboard/FormsAndTables";
 import AnalyticsDashboard from "../components/AdminDashboard/AnalyticsDashboard";
 import SettingsPanel from "../components/AdminDashboard/SettingsPanel";
-import RequestsPanel from "../components/AdminDashboard/RequestsPanel";
+// import RequestsPanel from "../components/AdminDashboard/RequestsPanel";
+import { Database } from "../types/supabase";
+import { set } from "date-fns";
 
-export const DashboardPage: React.FC = () => {
+type User = Database["public"]["Tables"]["users"]["Row"];
+
+export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -46,7 +54,10 @@ export const DashboardPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userData, setUserData] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const baseClasses = {
@@ -66,14 +77,13 @@ export const DashboardPage: React.FC = () => {
     { icon: Tag, label: "Produits", id: "products" },
     { icon: Receipt, label: "Ventes", id: "sales" },
     { icon: Package, label: "Colis", id: "packages" },
-    { icon: History, label: "Historique", id: "forms" },
+    { icon: User, label: "Employee", id: "employee" },
     { icon: PieChart, label: "Analytics", id: "analytics" },
     { icon: Settings, label: "Settings", id: "settings" },
   ];
 
   const handleSignOut = async () => {
     try {
-      // setIsProfileOpen(false);
       await signOut();
       navigate("/auth");
     } catch (error) {
@@ -108,9 +118,14 @@ export const DashboardPage: React.FC = () => {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase.from("users").select("*");
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user?.id)
+        .single();
 
       if (error) throw error;
+      setUserData(data);
     } catch (error) {
       console.error("Error fetching data:", error);
       setError(error instanceof Error ? error.message : "An error occurred");
@@ -140,61 +155,39 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-  //       <div className="text-center">
-  //         <div className="w-12 h-12 border-t-2 border-b-2 border-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-  //         <h2 className="text-xl font-semibold text-gray-900">Chargement</h2>
-  //         <p className="text-gray-600 mt-2">Attendez s'il vous plait...</p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="w-12 h-12 border-t-2 border-b-2 border-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-900">Chargement</h2>
+          <p className="text-gray-600 mt-2">Attendez s'il vous plait...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // if (error) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-  //       <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
-  //         <div className="text-red-500 mx-auto mb-4">
-  //           <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  //             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  //           </svg>
-  //         </div>
-  //         <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Error</h2>
-  //         <p className="text-gray-600 mb-6">{error}</p>
-  //         <button
-  //           onClick={() => navigate('/')}
-  //           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-  //         >
-  //           Return to Home
-  //         </button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
-  // if (!eventId) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-  //       <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
-  //         <div className="text-red-500 mx-auto mb-4">
-  //           <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  //             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  //           </svg>
-  //         </div>
-  //         <h2 className="text-2xl font-bold text-gray-900 mb-2">Event Not Found</h2>
-  //         <p className="text-gray-600 mb-6">The event information could not be found or has been removed.</p>
-  //         <button
-  //           onClick={() => navigate('/')}
-  //           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-  //         >
-  //           Return to Home
-  //         </button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+          <div className="text-red-500 mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${baseClasses.background}`}>
@@ -231,7 +224,7 @@ export const DashboardPage: React.FC = () => {
                     : "bg-blue-100 text-blue-800"
                 }`}
               >
-                Seller Access
+                Access Administrateur
               </div>
             </div>
 
@@ -255,53 +248,18 @@ export const DashboardPage: React.FC = () => {
 
               {/* Profile Menu */}
               <div className="relative" ref={profileMenuRef}>
-                <button
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className={`p-2 rounded-full transition-colors ${
-                    isDark
-                      ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                <div
+                  className={`flex items-center space-x-2 p-2 rounded-full transition-colors ${
+                  isDark
+                    ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                   }`}
                 >
-                  <UserCircle className="w-5 h-5" />
-                </button>
-
-                {showProfileMenu && (
-                  <div
-                    className={`absolute right-0 mt-2 w-48 ${baseClasses.card} rounded-lg shadow-lg py-1 z-50 ${baseClasses.border}`}
-                  >
-                    <div className="px-4 py-2 border-b border-gray-700">
-                      <p className="text-sm font-medium">company_name</p>
-                      <p className="text-xs text-gray-400">Exhibitor</p>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        // Navigate to settings or profile page
-                      }}
-                      className={`w-full flex items-center px-4 py-2 text-sm hover:${
-                        isDark ? "bg-gray-700" : "bg-gray-100"
-                      } transition-colors`}
-                    >
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        handleSignOut();
-                      }}
-                      className={`w-full flex items-center px-4 py-2 text-sm text-red-400 hover:${
-                        isDark ? "bg-gray-700" : "bg-gray-100"
-                      } transition-colors`}
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
-                    </button>
-                  </div>
-                )}
+                  <UserCircle className="w-6 h-6" />
+                  <span className="text-sm font-medium truncate">
+                  {userData?.username}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -346,72 +304,54 @@ export const DashboardPage: React.FC = () => {
               </motion.button>
             ))}
           </div>
+          <div className="fixed bottom-3 left-0 w-16 hover:w-52 px-2">
+            <motion.button
+              // onClick={handleSignOut}
+              className={`flex items-center px-3 py-2 rounded-lg transition-colors  w-full hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-white`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: menuItems.length * 0.05 }}
+            >
+              <Upload className="w-5 h-5 flex-shrink-0" />
+              <span className="ml-3 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                Importer
+              </span>
+            </motion.button>
+            <motion.button
+              // onClick={handleSignOut}
+              className={`flex items-center px-3 py-2 rounded-lg transition-colors w-full hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-white`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: menuItems.length * 0.05 }}
+            >
+              <Download className="w-5 h-5 flex-shrink-0" />
+              <span className="ml-3 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                Exporter
+              </span>
+            </motion.button>
+            <motion.button
+              onClick={handleSignOut}
+              className={`flex items-center px-3 py-2 rounded-lg transition-colors w-full text-red-600 hover:bg-red-50 dark:hover:bg-red-900 hover:text-red-700 dark:hover:text-white`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: menuItems.length * 0.05 }}
+            >
+              <LogOut className="w-5 h-5 flex-shrink-0" />
+              <span className="ml-3 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                Se déconnecter
+              </span>
+            </motion.button>
+          </div>
         </div>
 
         {/* Main Content Area */}
         <div className="flex-1 ml-16 pl-6 pr-6">
-          {/* Mobile Tab Navigation */}
-          <div className="flex overflow-x-auto mb-6 md:hidden">
-            <button
-              onClick={() => setActiveSection("dashboard")}
-              className={`flex-shrink-0 flex flex-col items-center px-4 py-2 ${
-                activeSection === "dashboard"
-                  ? "text-indigo-600 border-b-2 border-indigo-600"
-                  : "text-gray-500"
-              }`}
-            >
-              <Building2 className="w-5 h-5 mb-1" />
-              <span className="text-xs">Dashboard</span>
-            </button>
-
-            <button
-              onClick={() => setActiveSection("gallery")}
-              className={`flex-shrink-0 flex flex-col items-center px-4 py-2 ${
-                activeSection === "gallery"
-                  ? "text-indigo-600 border-b-2 border-indigo-600"
-                  : "text-gray-500"
-              }`}
-            >
-              <ImageIcon className="w-5 h-5 mb-1" />
-              <span className="text-xs">Gallery</span>
-            </button>
-
-            <button
-              onClick={() => setActiveSection("materials")}
-              className={`flex-shrink-0 flex flex-col items-center px-4 py-2 ${
-                activeSection === "materials"
-                  ? "text-indigo-600 border-b-2 border-indigo-600"
-                  : "text-gray-500"
-              }`}
-            >
-              <FileText className="w-5 h-5 mb-1" />
-              <span className="text-xs">Materials</span>
-            </button>
-
-            <button
-              onClick={() => setActiveSection("products")}
-              className={`flex-shrink-0 flex flex-col items-center px-4 py-2 ${
-                activeSection === "products"
-                  ? "text-indigo-600 border-b-2 border-indigo-600"
-                  : "text-gray-500"
-              }`}
-            >
-              <Package className="w-5 h-5 mb-1" />
-              <span className="text-xs">Products</span>
-            </button>
-
-            <button
-              onClick={() => setActiveSection("messages")}
-              className={`flex-shrink-0 flex flex-col items-center px-4 py-2 ${
-                activeSection === "messages"
-                  ? "text-indigo-600 border-b-2 border-indigo-600"
-                  : "text-gray-500"
-              }`}
-            >
-              <MessageSquare className="w-5 h-5 mb-1" />
-              <span className="text-xs">Messages</span>
-            </button>
-          </div>
           {/* Page Content */}
           <div className="top-0 flex-1 p-6">
             {activeSection === "dashboard" && (
@@ -426,23 +366,17 @@ export const DashboardPage: React.FC = () => {
             {activeSection === "sales" && (
               <SalesManagement isDark={isDark} baseClasses={baseClasses} />
             )}
-            {activeSection === "history" && (
-              <ModerationPanel isDark={isDark} baseClasses={baseClasses} />
-            )}
             {activeSection === "packages" && (
               <PackagesManagement isDark={isDark} baseClasses={baseClasses} />
             )}
-            {activeSection === "forms" && (
-              <FormsAndTables isDark={isDark} baseClasses={baseClasses} />
+            {activeSection === "employee" && (
+              <EmployeesManagement isDark={isDark} baseClasses={baseClasses} />
             )}
             {activeSection === "analytics" && (
               <AnalyticsDashboard isDark={isDark} baseClasses={baseClasses} />
             )}
             {activeSection === "settings" && (
               <AnalyticsDashboard isDark={isDark} baseClasses={baseClasses} />
-            )}
-            {activeSection === "requests" && (
-              <RequestsPanel isDark={isDark} baseClasses={baseClasses} />
             )}
           </div>
         </div>

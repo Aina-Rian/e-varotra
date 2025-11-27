@@ -11,15 +11,20 @@ import {
   DollarSign,
   Tag,
   Plus,
+  Star,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { toast, Toaster } from 'react-hot-toast';
 import type { Database } from '../../types/supabase';
 
-type Clients = Database['public']['Tables']['clients']['Row'];
+type Users = Database['public']['Tables']['users']['Row'];
 
-interface ClientsManagementProps {
+type Clients = Database['public']['Tables']['clients']['Row'] & {
+  location : Database['public']['Tables']['location']['Row']; 
+};
+
+interface EmployeesManagementProps {
   isDark: boolean;
   baseClasses: {
     background: string;
@@ -33,53 +38,53 @@ interface ClientsManagementProps {
   };
 }
 
-interface Client {
-  full_name: string;
-  city: string;
+interface UserFormData {
+  username: string;
   address: string;
-  coop: string;
-  contacts: string;
-  payment: string;
-  fb_link: string;
+  contact: string;
+  password: string;
+  role: string;
+  email: string;
+  status: string;
 }
 
-export const ClientsManagement: React.FC<ClientsManagementProps> = ({
+export const EmployeesManagement: React.FC<EmployeesManagementProps> = ({
   isDark,
   baseClasses,
 }) => {
   const { user } = useAuth();
-  const [clients, setClients] = useState<Clients[]>([]);
+  const [users, setUsers] = useState<Users[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingClient, setEditingClient] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null
   );
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState<Client>({
-    full_name: "",
-    city: "",
+  const [formData, setFormData] = useState<UserFormData>({
+    username: "",
     address: "",
-    contacts: "",
-    coop: "",
-    payment: "",
-    fb_link: "",
+    contact: "",
+    password: "",
+    role: "",
+    email: "",
+    status: "",
   });
 
   useEffect(() => {
-    fetchClients();
+    fetchUsers();
   }, []);
 
-  const fetchClients = async () => {
+  const fetchUsers = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from("clients")
-        .select("*")
+        .from("users")
+        .select('*')
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setClients(data || []);
+      setUsers(data || []);
     } catch (error) {
       console.error("Error fetching clients:", error);
       toast.error("Failed to load clients");
@@ -88,72 +93,91 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
     }
   };
 
-  const handleSaveClient = async () => {
+  const handleSaveUSer = async () => {
     try {
-      if (editingClient) {
-        // Update existing product
-        console.log("Updating client with ID:", user?.id);
+      if (editingUser) {
+        // Update existing client
         const { error } = await supabase
-          .from("clients")
+          .from("users")
           .update({
-            full_name: formData.full_name,
-            contacts: formData.contacts,
+            username: formData.username,
+            contact: formData.contact,
             address: formData.address,
-            city: formData.city,
-            coop: formData.coop,
-            fb_link: formData.fb_link,
-            payment: formData.payment,
+            role: formData.role,
+            status: formData.status,
+            email: formData.email,
           })
-          .eq("id", editingClient);
+          .eq("id", editingUser);
 
         if (error) {
           toast.error(`Update error: ${error.message}`);
           throw error;
         }
       } else {
-        // Create new product
-        const { error } = await supabase.from("clients")
-          .insert({
-            full_name: formData.full_name,
-            contacts: formData.contacts,
-            address: formData.address,
-            city: formData.city,
-            coop: formData.coop || "N/A",
-            fb_link: formData.fb_link,
-            payment: formData.payment,
+        // Insert new user
+        // create auth user (signup) and prepare fields for the DB insert
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
         });
+
+        if (authError) {
+          toast.error(`Signup error: ${authError.message}`);
+          throw authError;
+        }
+
+        // attach any missing fields expected by the following insert
+        const authUserId = authData?.user?.id ?? null;
+        if (!authUserId) {
+          toast.error("Failed to retrieve authenticated user ID");
+          throw new Error("Failed to retrieve authenticated user ID");
+        }
+
+        // location placeholder (no location field in the form currently)
+
+        const { error } = await supabase.from("users")
+          .insert({
+            id: authUserId,
+            username: formData.username,
+            contact: formData.contact,
+            address: formData.address,
+            role: formData.role,
+            status: formData.status,
+            email: formData.email,
+          });
 
         if (error) {
           toast.error(`Insert error: ${error.message}`);
           throw error;
         }
       }
-      toast.success("Product saved successfully");
+
+      toast.success("Employé enregistré avec succès");
       setShowModal(false);
-      setEditingClient(null);
+      setEditingUser(null);
       resetForm();
-      fetchClients();
+      fetchUsers();
     } catch (error) {
-      console.error("Error saving client:", error);
+      console.error("Error saving employee:", error);
       toast.error(
-        `Error saving client: ${
+        `Error saving employee: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
     }
   };
 
-  const handleDeleteClient = async (clientId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     try {
       const { error } = await supabase
-        .from("clients")
+        .from("users")
         .delete()
-        .eq("id", clientId);
+        .eq("id", userId);
 
       if (error) throw error;
 
-      setClients(clients.filter((client) => client.uid !== clientId));
-      toast.success("Client deleted successfully");
+      setUsers(users.filter((user) => user.id !== userId));
+      toast.success("User deleted successfully");
       setShowDeleteConfirm(null);
     } catch (error) {
       console.error("Error deleting client:", error);
@@ -162,24 +186,24 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
   };
 
   // Filtrer et trier les clients par ordre alphabétique du nom
-  const filteredClients = clients.filter((client) => {
+  const filteredUsers = users.filter((user) => {
     const searchLower = searchQuery.toLowerCase();
     return (
-      client.full_name?.toLowerCase().includes(searchLower) ||
-      client.city?.toLowerCase().includes(searchLower) ||
-      client.address?.toLowerCase().includes(searchLower)
+      user.username.toLowerCase().includes(searchLower)
+      // user.location.city?.toLowerCase().includes(searchLower) ||
+      // user.location.place?.toLowerCase().includes(searchLower)
     );
   });
 
   const resetForm = () => {
     setFormData({
-      full_name: "",
-      city: "",
+      username: "",
       address: "",
-      contacts: "",
-      coop: "",
-      payment: "",
-      fb_link: "",
+      contact: "",
+      password: "",
+      role: "visitor",
+      email: "",
+      status: "",
     });
   };
 
@@ -189,15 +213,15 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Gestion des cliens</h1>
-          <p className="text-gray-500">Gerer tout les clients enregistre</p>
+          <h1 className="text-2xl font-bold">Gestion des employés</h1>
+          <p className="text-gray-500">Gerer tout les employés actifs</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Rechercher un client..."
+              placeholder="Rechercher un employé ..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`pl-10 pr-4 py-2 ${baseClasses.input} border ${baseClasses.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-vibees-accent`}
@@ -208,7 +232,7 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
             className="flex items-center px-4 py-2 bg-vibees-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             <UserPlus className="w-5 h-5 mr-2" />
-            Ajouter un client
+            Creer un employé
           </button>
         </div>
       </div>
@@ -223,107 +247,113 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
           <table className="w-full table-fixed">
             <thead>
               <tr className={isDark ? "bg-[#142845]" : "bg-gray-50"}>
-                <th className="px-6 py-3 w-16 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Id
-                </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
                   Nom Complet
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
+                  Adresse
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
                   Telephone
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Location
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Coop
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Payement
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
-                  Achats
+                  Poste
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
                   Status
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 bg-inherit">
+                  Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-4 text-center">
+                  <td colSpan={6} className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center">
                       <div className="w-6 h-6 border-2 border-vibees-accent border-t-transparent rounded-full animate-spin"></div>
                       <span className="ml-2">Chargement des clients...</span>
                     </div>
                   </td>
                 </tr>
-              ) : filteredClients.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={6}
                     className="px-6 py-4 text-center text-gray-500"
                   >
                     Aucun client trouvé
                   </td>
                 </tr>
               ) : (
-                filteredClients.map((client) => (
+                filteredUsers.map((user) => (
                   <tr
-                    key={client.uid}
+                    key={user.id}
                     className={`hover:${
                       isDark ? "bg-[#142845]" : "bg-gray-50"
                     } cursor-pointer`}
-                    onClick={() => {
-                      setShowModal(true);
-                      setEditingClient(client.uid);
-                      setFormData({
-                        full_name: client.full_name || "",
-                        city: client.city || "",
-                        address: client.address || "",
-                        contacts: client.contacts || "",
-                        coop: client.coop || "",
-                        payment: client.payment || "",
-                        fb_link: client.fb_link || "",
-                      });
-                    }}
                   >
                     <td className="text-center px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold">{client.id}</span>
-                    </td>
-                    <td className="text-center px-6 py-4 whitespace-nowrap">
                       <span className={`font-medium ${baseClasses.text}`}>
-                        {client.full_name}
+                        {user.username}
                       </span>
                     </td>
                     <td className="text-center px-6 py-4 whitespace-nowrap">
-                      <span className={`font-medium ${baseClasses.text}`}>
-                        {client.contacts.split(";")[0].trim()}
-                      </span>
-                    </td>
-                    <td className="text-center px-6 py-4 whitespace-nowrap truncate">
-                      <span className={`font-medium ${baseClasses.text}`}>
-                        {client.address}, {client.city}
+                      <span className={`text-sm ${baseClasses.text}`}>
+                        {user.address}
                       </span>
                     </td>
                     <td className="text-center px-6 py-4 whitespace-nowrap">
-                      <span className={`font-medium ${baseClasses.text}`}>
-                        {client.coop}
+                      <span className={`text-sm ${baseClasses.text}`}>
+                        {user.contact}
                       </span>
                     </td>
                     <td className="text-center px-6 py-4 whitespace-nowrap">
-                      <span className={`font-medium ${baseClasses.text}`}>
-                        {client.payment}
-                      </span>
-                    </td>
-                    <td className="text-center px-6 py-4 whitespace-nowrap">
-                      <span className={`font-medium ${baseClasses.text}`}>
-                        {client.purchases}
+                      <span className={`text-sm ${baseClasses.text}`}>
+                        {user.role
+                          ? user.role === "liver"
+                            ? "Vendeur"
+                            : user.role === "deliver"
+                            ? "Livreur"
+                            : user.role === "admin"
+                            ? "Administrateur"
+                            : "Visiteur"
+                          : ""}
                       </span>
                     </td>
                     <td className="text-center px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      N/A
+                      <span className={`text-sm ${baseClasses.text}`}>
+                        {user.status ? user.status === "salaried" ? "Salarie" : "Presataire" : ""}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setShowModal(true);
+                            setEditingUser(user.id);
+                            setFormData({
+                              username: user.username,
+                              address: user.address,
+                              contact: user.contact,
+                              password: "",
+                              role: user.role,
+                              email: user.email,
+                              status: user.status,
+                            });
+                          }}
+                          className="text-blue-600 hover:text-blue-700"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setShowDeleteConfirm(user.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -332,6 +362,39 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`${baseClasses.card} rounded-xl shadow-xl w-full max-w-md p-6`}
+          >
+            <h3 className="text-xl font-semibold mb-4">
+              Confirmer la suppression
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Êtes-vous sûr de vouloir supprimer cet employé ? Cette action
+              est irréversible.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => handleDeleteUser(showDeleteConfirm)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Supprimer
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -343,7 +406,7 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
             <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold">
-                  {editingClient ? `Modifier un client` : `Ajouter un client`}
+                  {editingUser ? `Modifier un employe` : `Ajouter un employe`}
                 </h3>
                 <button
                   onClick={() => {
@@ -361,13 +424,43 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
               {/* Client Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nom complet du client
+                  Nom complet
                 </label>
                 <input
                   type="text"
-                  value={formData.full_name}
+                  value={formData.username}
                   onChange={(e) =>
-                    setFormData({ ...formData, full_name: e.target.value })
+                    setFormData({ ...formData, username: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  email
+                </label>
+                <input
+                  type="text"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Adresse
+                </label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   required
@@ -380,9 +473,9 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={formData.contacts}
+                  value={formData.contact}
                   onChange={(e) =>
-                    setFormData({ ...formData, contacts: e.target.value })
+                    setFormData({ ...formData, contact: e.target.value })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   required
@@ -395,114 +488,57 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Adresse ou reprere du client
+                    Poste
                   </label>
-                  <input
-                    type="text"
-                    value={formData.address}
+                  <select
+                    value={formData.role}
                     onChange={(e) =>
-                      setFormData({ ...formData, address: e.target.value })
+                      setFormData({ ...formData, role: e.target.value })
                     }
-                    placeholder="L'adresse ou le reprere du client"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                  <datalist id="city">
-                    {Array.from(
-                      new Set(filteredClients.map((client) => client.city))
-                    )
-                      .filter((city) => city) // remove empty cities
-                      .map((city) => (
-                        <option key={city} value={city} />
-                      ))}
-                  </datalist>
+                  >
+                    <option value="">Selectionner le poste</option>
+                    <option value="admin">Administrateur</option>
+                    <option value="liver">Vendeur</option>
+                    <option value="deliver">Livreur</option>
+                    <option value="visitor">Visiteur</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ville
+                    Status
                   </label>
-                  <input
-                    list="city"
-                    value={formData.city}
+                  <select
+                    value={formData.status}
                     onChange={(e) =>
-                      setFormData({ ...formData, city: e.target.value })
+                      setFormData({ ...formData, status: e.target.value })
                     }
-                    placeholder="Choisir ou taper un type"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                  <datalist id="city">
-                    {Array.from(
-                      new Set(filteredClients.map((client) => client.city))
-                    )
-                      .filter((city) => city) // remove empty cities
-                      .map((city) => (
-                        <option key={city} value={city} />
-                      ))}
-                  </datalist>
+                  >
+                    <option value="">-- Selectionner le status --</option>
+                    <option value="salaried">salarie</option>
+                    <option value="presta">Presataire</option>
+                  </select>
                 </div>
               </div>
-
-              {/* Payement && coop */}
-              {formData.city && formData.city !== "Antananarivo" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cooperative d&apos;envoie
-                  </label>
-                  <input
-                    list="coop"
-                    value={formData.coop}
-                    onChange={(e) =>
-                      setFormData({ ...formData, coop: e.target.value })
-                    }
-                    placeholder="Choisir ou taper un type"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                  <datalist id="coop">
-                    {Array.from(
-                      new Set(filteredClients.map((client) => client.coop))
-                    )
-                      .filter((coop) => coop)
-                      .map((coop) => (
-                        <option key={coop} value={coop} />
-                      ))}
-                  </datalist>
-                </div>
-              )}
 
               {/* Payement */}
-              <div>
+              {!editingUser && (
+                <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payement
-                </label>
-                <select
-                  value={formData.payment}
-                  onChange={(e) =>
-                    setFormData({ ...formData, payment: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="MVOLA">MVOLA</option>
-                  <option value="Orange Money">Orange Money</option>
-                  <option value="Airtel Money">Airtel Money</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Facebook
+                  Mot de passe
                 </label>
                 <input
                   type="text"
-                  value={formData.fb_link}
+                  value={formData.password}
                   onChange={(e) =>
-                    setFormData({ ...formData, fb_link: e.target.value })
+                    setFormData({ ...formData, password: e.target.value })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="https://facebook.com/username"
                   required
-                />
+                  />
               </div>
-
+                )}
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
@@ -516,12 +552,13 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={handleSaveClient}
+                  onClick={handleSaveUSer}
                   disabled={
-                    !formData.full_name ||
-                    !formData.city ||
+                    !formData.username ||
                     !formData.address ||
-                    !formData.contacts
+                    !formData.contact ||
+                    !formData.role ||
+                    !formData.email
                   }
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
                 >
@@ -536,4 +573,4 @@ export const ClientsManagement: React.FC<ClientsManagementProps> = ({
   );
 };
 
-export default ClientsManagement;
+export default EmployeesManagement;

@@ -26,13 +26,14 @@ import { JSX } from "react/jsx-runtime";
 import { User } from "@supabase/supabase-js";
 import { Form } from "react-router-dom";
 
-type Sales = Database["public"]["Tables"]["sales"]["Row"] & {
-  creator: Database["public"]["Tables"]["users"]["Row"];
+type Clients = Database["public"]["Tables"]["clients"]["Row"] & {
+  location : Database['public']['Tables']['location']['Row']; 
 };
-type Clients = Database["public"]["Tables"]["clients"]["Row"];
 type Products = Database["public"]["Tables"]["products"]["Row"];
 type Orders = Database["public"]["Tables"]["orders"]["Row"] & {
-  client: Database["public"]["Tables"]["clients"]["Row"];
+  client: Database["public"]["Tables"]["clients"]["Row"] & {
+    location: Database["public"]["Tables"]["location"]["Row"];
+  };
   sale: Database["public"]["Tables"]["sales"]["Row"];
 };
 
@@ -50,21 +51,14 @@ interface SalesManagementProps {
   };
 }
 
-interface saleForm {
-  title: string;
-  type: string;
-  product: string;
-  description: string;
-  quantity: number;
-  prices: number[];
-  creator: string;
-}
-
 interface OrdersForm {
   client: {
     full_name: string;
-    city: string;
-    address: string;
+    location: {
+      city: string;
+      place: string;
+    };
+    locationId: string;
     coop: string;
     contacts: string;
     payment: string;
@@ -85,9 +79,9 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
   const [orders, setOrders] = useState<Orders[]>([]);
   const [products, setProducts] = useState<Products[]>([]);
   const [clients, setClients] = useState<Clients[]>([]);
-  const [sales, setSales] = useState<Sales[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Products | null>(null);
   const [editingSale, setEditingSale] = useState<string | null>(null);
+  const [editingLocation, setEditingLocation] = useState<string | null>(null);
   const [editingOrder, setEditingOrder] = useState<string | null>(null);
   const [editingClient, setEditingClient] = useState<string | null>(null);
   const salesEndRef = useRef<HTMLDivElement | null>(null);
@@ -103,20 +97,14 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
   const [showAddClient, setShowAddClient] = useState(false);
   const [newPrice, setNewPrice] = useState<number | "">("");
   const [newQty, setNewQty] = useState<number | "">("");
-  const [saleData, setSaleData] = useState<saleForm>({
-    title: "",
-    type: "",
-    product: "",
-    description: "",
-    quantity: 0,
-    prices: [],
-    creator: "",
-  });
   const [orderForm, setOrderForm] = useState<OrdersForm>({
     client: {
       full_name: "",
-      city: "",
-      address: "",
+      location: {
+        city: "",
+        place: "",
+      },
+      locationId: "",
       contacts: "",
       coop: "",
       payment: "",
@@ -141,12 +129,10 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
 
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
-        .select(
-          `
+        .select(`
           *,
-          client(*)
-        `
-        )
+          client(*, location(*))
+        `)
         .order("created_at", { ascending: false });
 
       if (orderError) throw orderError;
@@ -160,85 +146,22 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
 
       const { data: clientData, error: clientError } = await supabase
         .from("clients")
-        .select("*");
+        .select(`
+          *,
+          location(*)
+        `);
 
       if (clientError) throw clientError;
-
-      const { data: salesData, error: salesError } = await supabase
-        .from("sales")
-        .select(
-          `
-          *,
-          creator:users(*)
-        `
-        )
-        .order("created_at", { ascending: false });
-
-      if (salesError) throw salesError;
 
       setOrders(orderData || []);
       setProducts(productData || []);
       setClients(clientData || []);
-      setSales(salesData || []);
       // console.log(orderData);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load data");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSaveSale = async () => {
-    try {
-      if (editingSale) {
-        // Update existing sale
-        console.log("Updating sale with ID:", editingSale);
-        const { error } = await supabase
-          .from("sales")
-          .update({
-            title: saleData.title,
-            type: saleData.type,
-            product_id: saleData.product,
-            description: saleData.description,
-            quantity: saleData.quantity,
-            prices: saleData.prices,
-          })
-          .eq("id", editingSale);
-
-        if (error) {
-          toast.error(`Update error: ${error.message}`);
-          throw error;
-        }
-      } else {
-        // Create new sale
-        const { error } = await supabase.from("sales").insert({
-          title: saleData.title,
-          type: saleData.type,
-          product_id: saleData.product,
-          description: saleData.description,
-          quantity: saleData.quantity,
-          prices: saleData.prices,
-          creator: user?.id,
-        });
-
-        if (error) {
-          toast.error(`Insert error: ${error.message}`);
-          throw error;
-        }
-      }
-      toast.success("Sale saved successfully");
-      setShowModal(false);
-      setEditingSale(null);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      console.error("Error saving sale:", error);
-      toast.error(
-        `Error saving sale: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
     }
   };
 
@@ -259,12 +182,31 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
         clientId = orderForm.client_id;
       } else {
         // Create new client
+        let locationId: string;
+        // if (selectedLocation) {
+        //   locationId = selectedLocation;
+        // } else {
+          const { data: locationData, error: locationError } = await supabase
+            .from("location")
+            .insert({
+              city: orderForm.client.location.city,
+              place: orderForm.client.location.place,
+            })
+            .select()
+            .single();
+
+          if (locationError) {
+            toast.error(`Error creating location: ${locationError.message}`);
+            throw locationError;
+          }
+          locationId = locationData.id;
+        // }
+
         const { data: newClient, error: clientError } = await supabase
           .from("clients")
           .insert({
             full_name: orderForm.client.full_name,
-            city: orderForm.client.city,
-            address: orderForm.client.address,
+            location: locationId,
             contacts: orderForm.client.contacts,
             coop: orderForm.client.coop,
             payment: orderForm.client.payment,
@@ -282,12 +224,10 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
 
       if (editingOrder) {
         if (editingClient) {
-          const { error } = await supabase
+          const { error: clientError } = await supabase
             .from("clients")
             .update({
               full_name: orderForm.client.full_name,
-              city: orderForm.client.city,
-              address: orderForm.client.address,
               contacts: orderForm.client.contacts,
               coop: orderForm.client.coop,
               payment: orderForm.client.payment,
@@ -295,11 +235,27 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
             })
             .eq("uid", editingClient);
 
-          if (error) {
-            toast.error(`Error updating client: ${error.message}`);
-            throw error;
+          if (clientError) {
+            toast.error(`Error updating client: ${clientError.message}`);
+            throw clientError;
+          }
+          if (editingLocation) {
+            toast.success(editingLocation);
+            const { error: locationError } = await supabase
+              .from("location")
+              .update({
+                city: orderForm.client.location.city,
+                place: orderForm.client.location.place,
+              })
+              .eq("id", editingLocation);
+              
+            if (locationError) {
+              toast.error(`Error updating location: ${locationError.message}`);
+              throw locationError;
+            }
           }
         }
+
         const { error } = await supabase
           .from("orders")
           .update({
@@ -371,6 +327,10 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
       setShowModal(false);
       setEditingSale(null);
       setOrderModal(false);
+      setShowAddClient(false);
+      setEditingOrder(null);
+      setEditingClient(null);
+      setEditingLocation(null);
       resetForm();
       fetchData();
     } catch (error) {
@@ -412,21 +372,14 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
   });
 
   const resetForm = () => {
-    setSaleData({
-      title: "",
-      type: "",
-      product: "",
-      description: "",
-      quantity: 0,
-      prices: [],
-      creator: "",
-    });
-
     setOrderForm({
       client: {
         full_name: "",
-        city: "",
-        address: "",
+        location: {
+          city: "",
+          place: "",
+        },
+        locationId: "",
         contacts: "",
         coop: "",
         payment: "",
@@ -455,7 +408,7 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
     if (!el) return;
 
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [sales, filteredOrders]);
+  }, [filteredOrders]);
 
   // Ajouter un article
   const addArticle = () => {
@@ -500,7 +453,7 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
             />
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => setOrderModal(true)}
             className="flex items-center px-4 py-2 bg-vibees-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             <UserPlus className="w-5 h-5 mr-2" />
@@ -545,216 +498,165 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
                   <td colSpan={6} className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center">
                       <div className="w-6 h-6 border-2 border-vibees-accent border-t-transparent rounded-full animate-spin"></div>
-                      <span className="ml-2">Chargement des ventes...</span>
+                      <span className="ml-2">Chargement des commandes...</span>
                     </div>
                   </td>
                 </tr>
               ) : (() => {
-                // Séparer les ventes en cours et terminées
-                const currentSales = sales
-                  .filter((sale) => !sale.end_time)
-                  .map((sale) => ({
-                    type: "current_sale" as const,
-                    created_at: sale.created_at,
-                    data: sale,
-                  }));
-
-                const endedSales = sales
-                  .filter((sale) => sale.end_time)
-                  .map((sale) => ({
-                    type: "ended_sale" as const,
-                    created_at: sale.created_at,
-                    data: sale,
-                  }));
-
-                const combined = [
-                  ...currentSales,
-                  ...endedSales,
-                  ...filteredOrders.map((order) => ({
-                    type: "order" as const,
-                    created_at: order.created_at,
-                    data: order,
-                  })),
-                ].sort(
-                  (a, b) =>
-                    new Date(a.created_at).getTime() -
-                    new Date(b.created_at).getTime()
-                );
-
-                if (combined.length === 0) {
+                // Ne garder que les orders et les séparer par jour
+                if (filteredOrders.length === 0) {
                   return (
                     <tr>
-                      <td
-                        colSpan={6}
-                        className="px-6 py-4 text-center text-gray-500"
-                      >
-                        Aucun vente ou commande trouvée
+                      <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                        Aucune commande trouvée
                       </td>
                     </tr>
                   );
                 }
 
-                return combined.map((item) => {
-                  if (item.type === "current_sale") {
-                    const sale = item.data as Sales;
-                    return (
-                      <tr key={`sale-${sale.id}`}>
-                        <td
-                          colSpan={6}
-                          className="px-6 py-2 text-center bg-gray-100 text-gray-500 border-l border-red"
+                const groupedByDay = filteredOrders.reduce<Record<string, Orders[]>>(
+                  (acc, order) => {
+                    const date = new Date(order.created_at || "");
+                    const day = String(date.getDate()).padStart(2, "0");
+                    const month = String(date.getMonth() + 1).padStart(2, "0");
+                    const year = String(date.getFullYear());
+                    const dayKey = `${day}/${month}/${year}`;
+                    if (!acc[dayKey]) acc[dayKey] = [];
+                    acc[dayKey].push(order);
+                    return acc;
+                  },
+                  {}
+                );
+
+                // Trier les jours du plus récent au plus ancien
+                const dayKeys = Object.keys(groupedByDay).sort((a, b) => {
+                  const [da, ma, ya] = a.split("/").map(Number);
+                  const [db, mb, yb] = b.split("/").map(Number);
+                  return new Date(yb, mb - 1, db).getTime() - new Date(ya, ma - 1, da).getTime();
+                });
+
+                const frenchDays = [
+                  "dimanche",
+                  "lundi",
+                  "mardi",
+                  "mercredi",
+                  "jeudi",
+                  "vendredi",
+                  "samedi",
+                ];
+                const frenchMonths = [
+                  "janvier",
+                  "février",
+                  "mars",
+                  "avril",
+                  "mai",
+                  "juin",
+                  "juillet",
+                  "août",
+                  "septembre",
+                  "octobre",
+                  "novembre",
+                  "décembre",
+                ];
+
+                // Trier les jours du plus ancien au plus récent (ordre croissant)
+                return dayKeys
+                  .sort((a, b) => {
+                  const [da, ma, ya] = a.split("/").map(Number);
+                  const [db, mb, yb] = b.split("/").map(Number);
+                  return new Date(ya, ma - 1, da).getTime() - new Date(yb, mb - 1, db).getTime();
+                  })
+                  .map((day) => {
+                  const ordersForDay = (groupedByDay[day] || []).sort(
+                    (o1, o2) =>
+                    new Date(o1.created_at || "").getTime() - new Date(o2.created_at || "").getTime()
+                  );
+
+                  // day is "dd/mm/yyyy" — reconstruire une Date pour formater
+                  const [dd, mm, yyyy] = day.split("/").map(Number);
+                  const dateObj = new Date(yyyy, mm - 1, dd);
+                  const dayName = frenchDays[dateObj.getDay()] || "";
+                  const monthName = frenchMonths[dateObj.getMonth()] || "";
+                  const yy = String(dateObj.getFullYear()).slice(-2);
+                  const formattedDay = `${dayName} ${String(dd).padStart(2, "0")} ${monthName} 20${yy}`;
+
+                  return (
+                  <React.Fragment key={`day-${day}`}>
+                    <tr>
+                    <td colSpan={6} className="px-6 py-2 text-center bg-gray-100 text-gray-500 border-l">
+                      <span className="font-semibold">Ventes du</span> {formattedDay}
+                    </td>
+                    </tr>
+
+                      {ordersForDay.map((order) => (
+                        <tr
+                          key={`order-${order.uid ?? order.id}`}
+                          className={`hover:${isDark ? "bg-[#142845]" : "bg-gray-50"} cursor-pointer`}
+                          onClick={() => {
+                            setOrderForm({
+                              client: {
+                                full_name: order.client.full_name || "",
+                                location: {
+                                  city: order.client.location.city || "",
+                                  place: order.client.location.place || "",
+                                },
+                                locationId: order.client.location.id || "",
+                                coop: order.client.coop || "",
+                                contacts: order.client.contacts || "",
+                                payment: order.client.payment || "",
+                                fb_link: order.client.fb_link || "",
+                              },
+                              article: (order.article || []) as { price: number; quantity: number }[],
+                              client_id: order.client?.uid || "",
+                              total: order.total || 0,
+                              status: order.status || "",
+                              comment: order.comment || "",
+                            });
+                            setEditingOrder(order.uid);
+                            setShowAddClient(true);
+                            setOrderModal(true);
+                          }}
                         >
-                          <span className="font-semibold">Vente</span> #
-                          {sale.title} du{" "}
-                          {(() => {
-                            const date = new Date(sale.created_at);
-                            const day = String(date.getDate()).padStart(
-                              2,
-                              "0"
-                            );
-                            const month = String(
-                              date.getMonth() + 1
-                            ).padStart(2, "0");
-                            const year = String(date.getFullYear()).slice(-2);
-                            const hours = String(date.getHours()).padStart(
-                              2,
-                              "0"
-                            );
-                            const minutes = String(
-                              date.getMinutes()
-                            ).padStart(2, "0");
-                            return `${day}/${month}/${year} ${hours}:${minutes}`;
-                          })()}
-                          {` crée par ${
-                            (sale.creator &&
-                              (sale.creator as any).username) ||
-                            "Inconnu"
-                          }`}
-                          .
-                        </td>
-                      </tr>
-                    );
-                  }
-                  if (item.type === "ended_sale") {
-                    const sale = item.data as Sales;
-                    return (
-                      <tr key={`sale-${sale.id}`}>
-                        <td
-                          colSpan={6}
-                          className="px-6 py-2 text-sm text-center bg-gray-100 text-gray-500 border-l border-red"
-                        >
-                          <span className="font-semibold">Fin du Vente</span> #
-                          {sale.title} du{" "}
-                          {(() => {
-                            const date = new Date(sale.end_time ?? "");
-                            const day = String(date.getDate()).padStart(
-                              2,
-                              "0"
-                            );
-                            const month = String(
-                              date.getMonth() + 1
-                            ).padStart(2, "0");
-                            const year = String(date.getFullYear()).slice(-2);
-                            const hours = String(date.getHours()).padStart(
-                              2,
-                              "0"
-                            );
-                            const minutes = String(
-                              date.getMinutes()
-                            ).padStart(2, "0");
-                            return `${day}/${month}/${year} ${hours}:${minutes}`;
-                          })()}
-                          {` crée par ${
-                            (sale.creator &&
-                              (sale.creator as any).username) ||
-                            "Inconnu"
-                          }`}
-                          .
-                        </td>
-                      </tr>
-                    );
-                  } else {
-                    const order = item.data as Orders;
-                    return (
-                      <tr
-                        key={`order-${order.uid}`}
-                        className={`hover:${isDark ? "bg-[#142845]" : "bg-gray-50"} cursor-pointer`}
-                        onClick={() => {
-                          setOrderForm({
-                            client: order.client,
-                            article: (order.article || []) as {
-                              price: number;
-                              quantity: number;
-                            }[],
-                            client_id: order.client?.uid || "",
-                            total: order.total || 0,
-                            status: order.status || "",
-                            comment: order.comment || "",
-                          });
-                          setEditingOrder(order.uid);
-                          setShowAddClient(true);
-                          setOrderModal(true);
-                        }}
-                      >
-                        <td className="text-left px-6 py-4 whitespace-nowrap bg-gray-50 border-r border-red text-sm">
-                          <span className="font-semibold">{order.id}</span>
-                        </td>
-                        <td className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}>
-                          <span className="text-sm font-medium">
-                            {order.client?.full_name || "Inconnu"}
-                          </span>
-                        </td>
-                        <td className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}>
-                          <span className="text-sm">
-                            {Array.isArray(order.article)
-                              ? (order.article as any[])
-                                  .filter(
-                                    (
-                                      a
-                                    ): a is {
-                                      price: number;
-                                      quantity: number;
-                                    } =>
-                                      a &&
-                                      typeof a === "object" &&
-                                      "price" in a &&
-                                      "quantity" in a
-                                  )
-                                  .map(
-                                    (
-                                      a: { price: number; quantity: number },
-                                      idx: number,
-                                      arr: {
-                                        price: number;
-                                        quantity: number;
-                                      }[]
-                                    ) => (
+                          <td className="text-left px-6 py-4 whitespace-nowrap bg-gray-50 border-r border-red text-sm">
+                            <span className="font-semibold">{order.id ?? order.uid}</span>
+                          </td>
+                          <td className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}>
+                            <span className="text-sm font-medium">
+                              {order.client?.full_name || "Inconnu"}
+                            </span>
+                          </td>
+                          <td className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}>
+                            <span className="text-sm">
+                              {Array.isArray(order.article)
+                                ? (order.article as any[])
+                                    .filter(
+                                      (a): a is { price: number; quantity: number } =>
+                                        a && typeof a === "object" && "price" in a && "quantity" in a
+                                    )
+                                    .map((a, idx, arr) => (
                                       <span key={idx}>
                                         {a.price} × {a.quantity}
                                         {idx < arr.length - 1 && " | "}
                                       </span>
-                                    )
-                                  )
-                              : null}
-                          </span>
-                        </td>
-                        <td className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}>
-                          <span className="text-sm">
-                            {formatNumber(String(order.total ?? ""))} Ar
-                          </span>
-                        </td>
-                        <td className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}>
-                          <span className="text-sm">
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className={`text-left px-6 py-4 whitespace-nowrap truncate text-sm ${baseClasses.text}`}>
-                          <span className="text-sm">
-                            {order.comment}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  }
+                                    ))
+                                : null}
+                            </span>
+                          </td>
+                          <td className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}>
+                            <span className="text-sm">
+                              {formatNumber(String(order.total ?? ""))} Ar
+                            </span>
+                          </td>
+                          <td className={`text-left px-6 py-4 whitespace-nowrap text-sm ${baseClasses.text}`}>
+                            <span className="text-sm">{order.status}</span>
+                          </td>
+                          <td className={`text-left px-6 py-4 whitespace-nowrap truncate text-sm ${baseClasses.text}`}>
+                            <span className="text-sm">{order.comment}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
                 });
               })()}
             </tbody>
@@ -763,232 +665,9 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
           <div
             className="py-2 text-center sticky bottom-0 bg-white border-t border-gray-200 z-20"
             ref={salesEndRef}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setOrderModal(true);
-                setEditingOrder(null);
-              }}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-vibees-accent text-white rounded-lg hover:bg-blue-600 transition-colors mx-auto"
-            >
-              <Plus className="w-5 h-5" />
-              Ajouter une commande
-            </button>
-          </div>
+          />
         </div>
       </div>
-
-      {/* Add sale modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-          >
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold">Creer une vente</h3>
-                <button
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Product Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Titre du vente
-                </label>
-                <input
-                  type="text"
-                  value={saleData.title}
-                  onChange={(e) =>
-                    setSaleData({ ...saleData, title: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={saleData.description}
-                  onChange={(e) =>
-                    setSaleData({ ...saleData, description: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  rows={2}
-                  required
-                />
-              </div>
-              {/*Produit */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Produit
-                </label>
-                <select
-                  value={saleData.product}
-                  onChange={(e) => {
-                    setSaleData({ ...saleData, product: e.target.value });
-                    setSelectedProduct(
-                      products.find((p) => p.id === e.target.value) || null
-                    );
-                  }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">-- Choisir un produit --</option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Quantity and Type */}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type de vente
-                  </label>
-                  <select
-                    value={saleData.type}
-                    onChange={(e) =>
-                      setSaleData({ ...saleData, type: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">-- Choisir un type --</option>
-                    <option value="Live">Live</option>
-                    <option value="Photo">Photo</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantité
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={saleData.quantity || ""}
-                    onChange={(e) =>
-                      setSaleData({
-                        ...saleData,
-                        quantity: Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder={
-                      selectedProduct
-                        ? `Quantite du produit : ${selectedProduct.quantity}`
-                        : "Quantity"
-                    }
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Prices */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Prix
-                </label>
-                {/* Champs de prix dynamiques */}
-                {saleData.prices.map((price, idx) => (
-                  <div
-                    className="flex gap-2 items-center mb-2 relative"
-                    key={idx}
-                  >
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                      Ar
-                    </span>
-                    <input
-                      type="number"
-                      value={price === 0 ? "" : price}
-                      min={0}
-                      onChange={(e) => {
-                        const newPrices = [...saleData.prices];
-                        newPrices[idx] =
-                          e.target.value === ""
-                            ? 0
-                            : parseFloat(e.target.value);
-                        setSaleData({ ...saleData, prices: newPrices });
-                      }}
-                      className="flex-1 w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder={`Prix #${idx + 1}`}
-                    />
-                    {saleData.prices.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newPrices = [...saleData.prices];
-                          newPrices.splice(idx, 1);
-                          setSaleData({ ...saleData, prices: newPrices });
-                        }}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                        title="Supprimer ce prix"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {/* Bouton pour ajouter un champ prix supplémentaire */}
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSaleData({
-                        ...saleData,
-                        prices: [...saleData.prices, 0],
-                      });
-                    }}
-                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors mt-1"
-                  >
-                    <Plus className="w-5 h-5 mr-1" />
-                    Ajouter un prix
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveSale}
-                  disabled={!saleData.title || !saleData.description}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                >
-                  <span>Enregister</span>
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       {orderModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -1010,6 +689,7 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
                     setShowAddClient(false);
                     setEditingOrder(null);
                     setEditingClient(null);
+                    setEditingLocation(null);
                     resetForm();
                   }}
                   className="text-gray-400 hover:text-gray-600"
@@ -1055,8 +735,11 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
                                   setOrderForm({
                                     client: {
                                       full_name: client.full_name || "",
-                                      city: client.city || "",
-                                      address: client.address || "",
+                                      location: {
+                                        city: client.location.city || "",
+                                        place: client.location.place || "",
+                                      },
+                                      locationId: client.location || "",
                                       contacts: client.contacts || "",
                                       coop: client.coop || "",
                                       payment: client.payment || "",
@@ -1068,6 +751,7 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
                                     status: "En attente",
                                     comment: "",
                                   });
+                                  console.log("log", client.location);
                                   setShowAddClient(true);
                                 }}
                               >
@@ -1186,16 +870,19 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
                             </label>
                             <input
                               type="text"
-                              value={orderForm.client.address}
-                              onChange={(e) =>
+                              value={orderForm.client.location.place}
+                              onChange={(e) => { 
                                 setOrderForm({
                                   ...orderForm,
                                   client: {
                                     ...orderForm.client,
-                                    address: e.target.value,
+                                    location: {
+                                      ...orderForm.client.location,
+                                      place: e.target.value },
                                   },
                                 })
-                              }
+                                setEditingLocation(orderForm.client.locationId);
+                              }}
                               className={`w-full px-3 py-1.5 text-sm rounded-lg ${baseClasses.input} border ${baseClasses.border}`}
                             />
                           </div>
@@ -1206,22 +893,26 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
                             </label>
                             <input
                               type="text"
-                              value={orderForm.client.city}
-                              onChange={(e) =>
+                              value={orderForm.client.location.city}
+                              onChange={(e) => {
+                                setEditingLocation(orderForm.client.locationId);
                                 setOrderForm({
                                   ...orderForm,
                                   client: {
                                     ...orderForm.client,
-                                    city: e.target.value,
+                                    location: {
+                                      ...orderForm.client.location,
+                                      city: e.target.value },
                                   },
                                 })
+                              }
                               }
                               className={`w-full px-3 py-1.5 text-sm rounded-lg ${baseClasses.input} border ${baseClasses.border}`}
                             />
                           </div>
 
-                          {orderForm.client.city &&
-                            orderForm.client.city !== "Antananarivo" && (
+                          {orderForm.client.location.city &&
+                            orderForm.client.location.city !== "Antananarivo" && (
                               <div className="md:col-span-2">
                                 <label className="block text-xs font-medium mb-1">
                                   Coop
@@ -1290,7 +981,29 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
                 </div>
               )}
 
+
               <div className="p-3 rounded-lg bg-white dark:bg-gray-800 border">
+                <div className="flex justify-between items-center mb-2">
+                  <h6 className="text-sm font-medium">Produit</h6>
+                </div>
+                <select
+                  value={""}
+                  onChange={(e) => {
+                    // setSaleData({ ...saleData, product: e.target.value });
+                    setSelectedProduct(
+                      products.find((p) => p.id === e.target.value) || null
+                    );
+                  }}
+                  className="w-full mb-3 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">-- Choisir un produit --</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
                 <div className="flex justify-between items-center mb-3">
                   <h6 className="text-sm font-medium">Articles</h6>
                 </div>
@@ -1300,7 +1013,7 @@ export const SalesManagement: React.FC<SalesManagementProps> = ({
                   {orderForm.article.map((art, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between px-3 py-2 rounded-lg border bg-gray-50 dark:bg-gray-900"
+                      className="mb-3 flex items-center justify-between px-3 py-2 rounded-lg border bg-gray-50 dark:bg-gray-900"
                     >
                       <span>
                         {art.price} Ar × {art.quantity}
