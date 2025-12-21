@@ -196,7 +196,7 @@ export const SellerDashboardPage: React.FC = () => {
                   className={`w-auto h-10 rounded-lg`}
                 />
                 <h1 className="text-2xl font-bold text-vibees-yellow">
-                  Lamody
+                  E-Varotra
                 </h1>
               </motion.div>
               <div

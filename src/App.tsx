@@ -22,21 +22,7 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={
-              user ? (
-                role === 'admin' ? (
-                  <Navigate to="/admin" replace />
-                ) : role === 'liver' ? (
-                  <Navigate to="/seller" replace />
-                ) : role === 'deliver' ? (
-                  <Navigate to="/delivery" replace />
-                ) : role === 'visitor' ? (
-                  <LandingPage />
-                ) : null
-              ) : (
-                <LandingPage />
-              )
-            }
+            element={<LandingPage /> }
           />
           <Route path="/auth" element={<AuthPage />} />
           <Route

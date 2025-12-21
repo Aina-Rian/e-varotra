@@ -3,13 +3,9 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useRoles } from '../hooks/useRoles';
-import { Header } from '../components/Header';
 import { Loader2 } from 'lucide-react';
-import { signInWithGoogle, signInWithLinkedIn, supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { useTranslation } from 'react-i18next';
-import { Database } from '../types/supabase';
-
-type User = Database['public']['Tables']['users']['Row'];
 
 export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
@@ -49,10 +45,10 @@ export const AuthPage: React.FC = () => {
 
         switch(userRole) {
           case 'admin':
-            navigate('/', { replace: true });
+            navigate('/admin', { replace: true });
             break;
           case 'liver':
-            navigate('/', { replace: true });
+            navigate('/seller', { replace: true });
             break;
           case 'deliver':
             navigate('/delivery', { replace: true });
@@ -120,66 +116,6 @@ export const AuthPage: React.FC = () => {
     setError(null);
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      await signInWithGoogle();
-      // // Check if user profile exists, if not create one
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log("Session:", session);
-      if (session?.user) {
-        const { data: userData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-        
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', userData?.id)
-          .single();
-        
-        if (!profile) {
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert([
-              {
-                user_id: userData?.id,
-                full_name: userData?.full_name,
-                role: 'attendee',
-                is_default: true
-              }
-            ]);
-
-          if (profileError) {
-            console.error('Error creating profile:', profileError);
-            throw new Error('Failed to create user profile');
-          }
-        }
-      }
-      // Redirection will happen in the useEffect
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in with Google';
-      setError(errorMessage);
-      setIsLoading(false);
-    }
-  };
-
-  const handleLinkedInSignIn = async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      await signInWithLinkedIn();
-      // Redirection will happen in the useEffect
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in with LinkedIn';
-      setError(errorMessage);
-      setIsLoading(false);
-    }
-  };
-
   if (authLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -222,7 +158,7 @@ export const AuthPage: React.FC = () => {
                   />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                  Bienvenue sur Lamody H&H
+                  Bienvenue sur E-Varotra
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm sm:text-base">
                   {isSignUp ? 'Créez votre compte' : 'Connectez-vous à votre compte'}

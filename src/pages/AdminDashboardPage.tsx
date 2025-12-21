@@ -35,8 +35,6 @@ import SalesManagement from "../components/AdminDashboard/SalesManagement";
 import EmployeesManagement from "../components/AdminDashboard/EmployeesManagement";
 import PackagesManagement from "../components/AdminDashboard/PackagesManagement";
 import ProductsManagement from "../components/AdminDashboard/ProductsManagement";
-// import ModerationPanel from "../components/AdminDashboard/ModerationPanel";
-// import ComponentsLibrary from "../components/AdminDashboard/ComponentsLibrary";
 import FormsAndTables from "../components/AdminDashboard/FormsAndTables";
 import AnalyticsDashboard from "../components/AdminDashboard/AnalyticsDashboard";
 import SettingsPanel from "../components/AdminDashboard/SettingsPanel";
@@ -85,7 +83,7 @@ export const AdminDashboardPage: React.FC = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate("/auth");
+      navigate("/");
     } catch (error) {
       console.error("Error signing out:", error);
     }
@@ -214,7 +212,7 @@ export const AdminDashboardPage: React.FC = () => {
                   className={`w-auto h-10 rounded-lg`}
                 />
                 <h1 className="text-2xl font-bold text-vibees-yellow">
-                  Lamody
+                  E-Varotra
                 </h1>
               </motion.div>
               <div

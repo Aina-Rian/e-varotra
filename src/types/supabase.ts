@@ -53,6 +53,32 @@ export type Database = {
           purchases?: number
         }
       }
+      supplier: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          contact: string
+          address: string
+          created_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          email: string
+          contact: string
+          address: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          contact?: string
+          address?: string
+          created_at?: string
+        }
+      }
       location : {
         Row: {
           id: string
@@ -91,6 +117,7 @@ export type Database = {
           quantity: number
           purchase_price: number
           supplier: string
+          articles: Json
           in_stock: boolean
           created_at: string
           creator_id: string
@@ -102,6 +129,7 @@ export type Database = {
           quantity?: number
           purchase_price?: number
           supplier?: string
+          articles?: Json
           in_stock?: boolean
           created_at?: string
           creator_id: string
@@ -113,6 +141,7 @@ export type Database = {
           quantity?: number
           purchase_price?: number
           supplier?: string
+          articles?: Json
           in_stock?: boolean
           created_at?: string
           creator_id?: string
