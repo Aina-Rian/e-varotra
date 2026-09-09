@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useRoles } from '../hooks/useRoles';
+import { Header } from '../components/Header';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { signInWithGoogle, signInWithLinkedIn, supabase } from '../lib/supabase';
 import { useTranslation } from 'react-i18next';
 
 export const AuthPage: React.FC = () => {
@@ -22,41 +23,29 @@ export const AuthPage: React.FC = () => {
 
   useEffect(() => {
     if (user && !roleLoading) {
-      console.log("User is logged in with role:", user.role);
-      redirectBasedOnRole(user.id);
+      redirectBasedOnRole(role);
     }
   }, [user, role, roleLoading, navigate]);
 
-  const redirectBasedOnRole = (userId: string | null) => {
-    console.log("Redirecting based on role:", userId);
-
-    supabase
-      .from('users')
-      .select('role')
-      .eq('id', userId)
-      .single()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Error fetching user role for redirection:", error);
-          return;
-        }
-
-        const userRole = data?.role;
-
-        switch(userRole) {
-          case 'admin':
-            navigate('/admin', { replace: true });
-            break;
-          case 'liver':
-            navigate('/seller', { replace: true });
-            break;
-          case 'deliver':
-            navigate('/delivery', { replace: true });
-            break;
-          default:
-            navigate('/', { replace: true });
-        }
-      });
+  const redirectBasedOnRole = (userRole: string | null) => {
+    console.log("Redirecting based on role:", userRole);
+    
+    switch(userRole) {
+      case 'admin':
+        navigate('/admin', { replace: true });
+        break;
+      case 'organizer':
+        navigate('/admin', { replace: true });
+        break;
+      case 'moderator':
+        navigate('/moderator', { replace: true });
+        break;
+      case 'attendee':
+        navigate('/attendee/program', { replace: true });
+        break;
+      default:
+        navigate('/', { replace: true });
+    }
   };
 
   const validateForm = () => {
@@ -116,14 +105,70 @@ export const AuthPage: React.FC = () => {
     setError(null);
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      await signInWithGoogle();
+      // // Check if user profile exists, if not create one
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Session:", session);
+      if (session?.user) {
+        const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+        
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', userData?.id)
+          .single();
+        
+        if (!profile) {
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert([
+              {
+                user_id: userData?.id,
+                full_name: userData?.full_name,
+                role: 'attendee',
+                is_default: true
+              }
+            ]);
+
+          if (profileError) {
+            console.error('Error creating profile:', profileError);
+            throw new Error('Failed to create user profile');
+          }
+        }
+      }
+      // Redirection will happen in the useEffect
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in with Google';
+      setError(errorMessage);
+      setIsLoading(false);
+    }
+  };
+
+  const handleLinkedInSignIn = async () => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      await signInWithLinkedIn();
+      // Redirection will happen in the useEffect
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in with LinkedIn';
+      setError(errorMessage);
+      setIsLoading(false);
+    }
+  };
+
   if (authLoading || roleLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="w-12 h-12 border-t-2 border-b-2 border-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-900">Chargement</h2>
-          <p className="text-gray-600 mt-2">Attendez s'il vous plait...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
       </div>
     );
   }
@@ -143,7 +188,7 @@ export const AuthPage: React.FC = () => {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-center mb-4"
+                className="text-center mb-8"
               >
                 <div className="flex justify-center mb-4">
                   <img
@@ -158,12 +203,37 @@ export const AuthPage: React.FC = () => {
                   />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                  Bienvenue sur E-Varotra
+                  Bienvenue sur Lamody H&H
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm sm:text-base">
                   {isSignUp ? 'Créez votre compte' : 'Connectez-vous à votre compte'}
                 </p>
               </motion.div>
+
+              {/* Social Sign In Buttons */}
+              <div className="space-y-3 mb-6">
+                <button
+                  onClick={handleGoogleSignIn}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 text-gray-700 dark:text-gray-200 font-medium"
+                >
+                  <img
+                    src="https://www.google.com/favicon.ico"
+                    alt="Google"
+                    className="w-5 h-5 mr-3"
+                  />
+                  Continuer avec Google
+                </button>
+              </div>
+
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white dark:bg-black text-gray-500 dark:text-gray-400">Ou continuer avec</span>
+                </div>
+              </div>
             </div>
 
             <div className="p-6 sm:p-8">

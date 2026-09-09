@@ -15,13 +15,8 @@ import {
   AlertCircle,
   Package
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import toast, { Toaster } from 'react-hot-toast';
-import type { Database } from "../types/supabase";
-
-type Client = Database["public"]["Tables"]["clients"]["Row"] & {
-  location: Database["public"]["Tables"]["location"]["Row"];
-};
 
 interface DashboardProps {
   isDark: boolean;
@@ -44,16 +39,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
     totalSales: 0,
     newClients: 0,
     totalPackages: 0,
-    dayRevenue: 0
+    daySales: 0
   });
   const [loading, setLoading] = useState(true);
-  const [recentClients, setRecentClients] = useState<Client[]>([]);
+  const [recentUsers, setRecentUsers] = useState<any[]>([]);
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('all');
   const [contentItems, setContentItems] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStats();
-    fetchRecentClients();
+    fetchRecentUsers();
+    fetchRecentEvents();
+    fetchContentModeration();
   }, []);
 
   const fetchStats = async () => {
@@ -78,38 +76,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         .from('clients')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', today.toISOString());
-
-      // Fetch today's revenue
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select('*')
-        .gte('created_at', today.toISOString());
-
-      if (error) throw error;
-
-
-      // Fetch total orders
-      const { count: ordersCount, error: ordersError } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true });
-
-      if (ordersError) throw ordersError;
       
-      // Fetch pending package
-      const { count: packageCount, error: packageError } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'En attente');
+      // Fetch total sessions
+      // const { count: sessionCount, error: sessionError } = await supabase
+      //   .from('sessions')
+      //   .select('*', { count: 'exact', head: true });
       
-      if (packageError) throw packageError;
+      // // Fetch pending questions
+      // const { count: questionCount, error: questionError } = await supabase
+      //   .from('session_questions')
+      //   .select('*', { count: 'exact', head: true })
+      //   .eq('status', 'pending');
+      
+      // // Fetch total registrations
+      // const { count: registrationCount, error: registrationError } = await supabase
+      //   .from('event_registrations')
+      //   .select('*', { count: 'exact', head: true });
       
       setStats({
         totalClients: clientCount || 0,
         totalProducts: ProductCount || 0,
-        totalSales: ordersCount || 0, 
+        totalSales: 0, 
         newClients: newClientsCount || 0,
-        totalPackages: packageCount || 0,
-        dayRevenue: orders?.reduce((sum, order) => sum + order.total, 0) || 0
+        totalPackages: 0,
+        daySales: 0
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -118,21 +108,152 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
     }
   };
 
-  const fetchRecentClients = async () => {
+  const fetchRecentUsers = async () => {
     try {
       const { data, error } = await supabase
-        .from('clients')
-        .select(`
-          *,
-          location(*)
-        `)
+        .from('users')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(5);
       
       if (error) throw error;
-      setRecentClients(data || []);
+      setRecentUsers(data || []);
     } catch (error) {
-      console.error('Error fetching recent clients:', error);
+      console.error('Error fetching recent users:', error);
+    }
+  };
+
+  const fetchRecentEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      setRecentEvents(data || []);
+    } catch (error) {
+      console.error('Error fetching recent events:', error);
+    }
+  };
+
+  const fetchContentModeration = async () => {
+    try {
+      // Fetch recent messages that might need moderation
+      const { data: messages, error: messagesError } = await supabase
+        .from('session_messages')
+        .select(`
+          id,
+          content,
+          created_at,
+          user_id,
+          session_id,
+          sessions:session_id(title)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (messagesError) throw messagesError;
+      
+      // Fetch recent questions that might need moderation
+      const { data: questions, error: questionsError } = await supabase
+        .from('session_questions')
+        .select(`
+          id,
+          question,
+          status,
+          created_at,
+          user_id,
+          session_id,
+          sessions:session_id(title)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (questionsError) throw questionsError;
+      
+      // Combine and format the data
+      const formattedMessages = (messages || []).map(msg => ({
+        id: msg.id,
+        type: 'message',
+        content: msg.content,
+        created_at: msg.created_at,
+        user_id: msg.user_id,
+        session_id: msg.session_id,
+        session_title: msg.sessions?.title || 'Unknown Session',
+        flagged: Math.random() < 0.2 // Simulate some messages being flagged
+      }));
+      
+      const formattedQuestions = (questions || []).map(q => ({
+        id: q.id,
+        type: 'question',
+        content: q.question,
+        created_at: q.created_at,
+        user_id: q.user_id,
+        session_id: q.session_id,
+        session_title: q.sessions?.title || 'Unknown Session',
+        status: q.status,
+        flagged: Math.random() < 0.2 // Simulate some questions being flagged
+      }));
+      
+      // Combine and sort by creation date
+      const combined = [...formattedMessages, ...formattedQuestions]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5);
+      
+      setContentItems(combined);
+    } catch (error) {
+      console.error('Error fetching content for moderation:', error);
+    }
+  };
+
+  const handleApproveContent = async (id: string, type: string) => {
+    try {
+      if (type === 'question') {
+        const { error } = await supabase
+          .from('session_questions')
+          .update({ status: 'answered' })
+          .eq('id', id);
+        
+        if (error) throw error;
+        toast.success('Question approved');
+      } else {
+        // For messages, we could mark them as reviewed in a real implementation
+        toast.success('Message approved');
+      }
+      
+      // Refresh the content list
+      fetchContentModeration();
+    } catch (error) {
+      console.error('Error approving content:', error);
+      toast.error('Failed to approve content');
+    }
+  };
+
+  const handleDeleteContent = async (id: string, type: string) => {
+    try {
+      if (type === 'question') {
+        const { error } = await supabase
+          .from('session_questions')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('session_messages')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
+      }
+      
+      toast.success('Content deleted successfully');
+      fetchContentModeration();
+    } catch (error) {
+      console.error('Error deleting content:', error);
+      toast.error('Failed to delete content');
     }
   };
 
@@ -186,16 +307,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
     }
   };
 
-    function formatNumber(value: string): string {
-    // Supprimer tous les caractères non numériques
-    const cleaned = value.replace(/\D/g, "");
-
-    if (!cleaned) return "";
-
-    // Formater avec séparateurs de milliers (.)
-    return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  }
-
   return (
     <div className="space-y-6">
       <Toaster position="top-right" reverseOrder={false} />
@@ -209,7 +320,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
           <button 
             onClick={() => {
               fetchStats();
-              fetchRecentClients();
+              fetchRecentUsers();
+              fetchRecentEvents();
+              fetchContentModeration();
               toast.success('Dashboard refreshed');
             }}
             className="flex items-center px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
@@ -331,8 +444,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
         >
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Recette aujourd'hui</p>
-              <h3 className="text-2xl font-bold mt-1">{formatNumber(String(stats.dayRevenue))} Ar</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Ventes effectue aujourd'hui</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.daySales}</h3>
               <p className="text-xs text-green-500 mt-1 flex items-center">
                 <ArrowUpRight className="w-3 h-3 mr-1" />
                 18% increase
@@ -367,46 +480,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Achats</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {recentClients.map((client) => (
-                  <tr key={client.id} className={`hover:${isDark ? 'bg-[#142845]' : 'bg-gray-50'}`}>
+              {/* <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {recentUsers.map((user) => (
+                  <tr key={user.id} className={`hover:${isDark ? 'bg-[#142845]' : 'bg-gray-50'}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                          <span className="text-lg font-medium text-gray-600 dark:text-gray-300">
-                            {client.full_name?.[0]?.toUpperCase() || 'U'}
-                          </span>
+                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                          {user.avatar_url ? (
+                            <img src={user.avatar_url} alt={user.full_name} className="h-10 w-10 rounded-full" />
+                          ) : (
+                            <span className="text-lg font-medium text-gray-600 dark:text-gray-300">
+                              {user.full_name?.[0]?.toUpperCase() || 'U'}
+                            </span>
+                          )}
                         </div>
                         <div className="ml-4">
-                          {client.fb_link ? (
-                            <a
-                              href={client.fb_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-medium text-vibees-accent hover:underline"
-                            >
-                              {client.full_name}
-                            </a>
-                          ) : (
-                            <div className="text-sm font-medium">{client.full_name}</div>
-                          )}
+                          <div className="text-sm font-medium">{user.full_name}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full}`}>
-                        {client.contacts.split(';')[0]}
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeClass(user.role)}`}>
+                        {user.role}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {client.location.city || 'N/A'}
+                      {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {client.purchases || 0}
+                      <button className="text-vibees-accent hover:text-vibees-accent/80 mr-3">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button className="text-red-500 hover:text-red-700">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
-              </tbody>
+              </tbody> */}
             </table>
           </div>
         </div>
@@ -431,8 +543,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {/* {recentEvents.map((event) => (
+              {/* <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {recentEvents.map((event) => (
                   <tr key={event.id} className={`hover:${isDark ? 'bg-[#142845]' : 'bg-gray-50'}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -471,8 +583,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
                       </button>
                     </td>
                   </tr>
-                ))} */}
-              </tbody>
+                ))}
+              </tbody> */}
             </table>
           </div>
         </div>
@@ -573,7 +685,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
                       </div>
                       <div className="flex space-x-2">
                         <button 
-                          // onClick={() => handleApproveContent(item.id, item.type)}
+                          onClick={() => handleApproveContent(item.id, item.type)}
                           className="p-1 text-green-500 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-full transition-colors"
                           title="Approve"
                         >
@@ -587,7 +699,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isDark, baseClasses }) => 
                           <AlertCircle className="w-5 h-5" />
                         </button>
                         <button 
-                          // onClick={() => handleDeleteContent(item.id, item.type)}
+                          onClick={() => handleDeleteContent(item.id, item.type)}
                           className="p-1 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors"
                           title="Delete"
                         >

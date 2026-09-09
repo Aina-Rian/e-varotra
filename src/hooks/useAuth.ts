@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { User } from 'lucide-react';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -58,22 +57,9 @@ export function useAuth() {
       });
       
       if (error) throw error;
-
-      const { data: UserData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
       
-      if (userError) {
-        console.warn('No user profile found, proceeding without it');
-      } else {
-        addLog(`Fetched user profile for ${UserData?.username || 'unknown user'}`);
-      }
-      
-      console.log("Signed in user data:", UserData); // Debug log
-      setUser(UserData);
-      return UserData;
+      setUser(data.user);
+      return data;
     } catch (err) {
       console.error('Sign in error:', err);
       setError(err instanceof Error ? err : new Error('An error occurred during sign in'));

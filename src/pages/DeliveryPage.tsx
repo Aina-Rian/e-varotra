@@ -85,14 +85,13 @@ export const DeliveryPage: React.FC = () => {
     }
   };
 
-  type StatusKey = "pending" | "delivered" | "returned";
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<StatusKey, { label: string; class: string }> = {
+    const statusConfig = {
       pending: { label: "En attente", class: "border-orange-500 text-orange-700 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400" },
       delivered: { label: "Livré", class: "border-green-500 text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400" },
       returned: { label: "Retourné", class: "border-red-500 text-red-700 bg-red-50 dark:bg-red-900/20 dark:text-red-400" },
     };
-    return statusConfig[status as StatusKey] || statusConfig.pending;
+    return statusConfig[status] || statusConfig.pending;
   };
 
   const formatNumber = (value: string | number): string => {
@@ -219,15 +218,15 @@ export const DeliveryPage: React.FC = () => {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-start space-x-4">
                       <div className="flex-shrink-0">
-                        {getStatusIcon(order.status || '')}
+                        {getStatusIcon(order.status)}
                       </div>
                       <div>
                         <div className="flex items-center space-x-2 mb-1">
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                             Commande #{order.id}
                           </h3>
-                          <span className={`text-xs py-1 px-2 border-2 rounded-lg ${getStatusBadge(order.status || '').class}`}>
-                            {getStatusBadge(order.status || '').label}
+                          <span className={`text-xs py-1 px-2 border-2 rounded-lg ${getStatusBadge(order.status).class}`}>
+                            {getStatusBadge(order.status).label}
                           </span>
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">

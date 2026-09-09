@@ -21,6 +21,7 @@ async function fetchRoleWithRetry(
     if (!navigator.onLine) {
       throw new Error('No internet connection');
     }
+
     const { data, error } = await supabase
       .from('users')
       .select('role')
@@ -99,12 +100,12 @@ export function useRoles() {
     return role === requiredRole;
   };
 
-  console.log("useRoles state:", { role, loading, error }); // Debug log
-
   return {
     role,
     loading,
     error,
+    isAdmin: () => role === 'admin',
+    isOrganizer: () => role === 'organizer',
     hasRole
   };
 }

@@ -14,8 +14,8 @@ export type Database = {
           id: number // si auto-increment (BIGSERIAL / int8)
           uid: string
           full_name: string
-          location: string
-          status: string
+          city: string
+          address: string
           coop: string
           contacts: string // stocke phone/email en JSON
           payment: string
@@ -28,8 +28,8 @@ export type Database = {
           id?: number
           uid: string
           full_name: string
-          location: string
-          status: string
+          city: string
+          address: string
           coop: string
           contacts: string
           payment: string
@@ -42,8 +42,8 @@ export type Database = {
           id?: number
           uid?: string
           full_name?: string
-          location?: string
-          status?: string
+          city?: string
+          address?: string
           coop?: string
           contacts?: string
           payment?: string
@@ -51,61 +51,6 @@ export type Database = {
           created_at?: string
           updated_at?: string | null
           purchases?: number
-        }
-      }
-      supplier: {
-        Row: {
-          id: string
-          name: string
-          email: string
-          contact: string
-          address: string
-          created_at: string
-        }
-        Insert: {
-          id: string
-          name: string
-          email: string
-          contact: string
-          address: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          email?: string
-          contact?: string
-          address?: string
-          created_at?: string
-        }
-      }
-      location : {
-        Row: {
-          id: string
-          city: string
-          place: string | null
-          deliver: string | null
-          delivery_fee: number
-          axe: string
-          created_at: string
-        }
-        Insert: {
-          id: string
-          city: string
-          place?: string | null
-          deliver: string | null
-          delivery_fee: number
-          axe: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          city?: string
-          place?: string | null
-          deliver: string | null
-          delivery_fee: number
-          axe: string
-          created_at?: string
         }
       }
 
@@ -117,7 +62,6 @@ export type Database = {
           quantity: number
           purchase_price: number
           supplier: string
-          articles: Json
           in_stock: boolean
           created_at: string
           creator_id: string
@@ -129,7 +73,6 @@ export type Database = {
           quantity?: number
           purchase_price?: number
           supplier?: string
-          articles?: Json
           in_stock?: boolean
           created_at?: string
           creator_id: string
@@ -141,7 +84,6 @@ export type Database = {
           quantity?: number
           purchase_price?: number
           supplier?: string
-          articles?: Json
           in_stock?: boolean
           created_at?: string
           creator_id?: string
@@ -151,50 +93,47 @@ export type Database = {
         Row: {
           id: number
           uid: string
-          creator: string
-          client: string
-          article: Json
-          total: number
-          remain: number
-          payment: string
-          net_payement: number
-          comment: string
-          package: string
-          status: string
+          creator: string | null
+          client: string | null
+          article: Json | null
+          total: number | null
+          remain: number | null
+          payment: string | null
+          comment: string | null
+          package: string | null
+          status: string | null
           created_at: string
-          sale_id: string
+          sale_id: string | null
         }
         Insert: {
           id?: number
           uid?: string
-          creator?: string
-          client?: string
-          article?: Json
-          total?: number
-          net_payement?: number
-          remain?: number
-          payment?: string
-          comment?: string
-          package?: string
-          status?: string
+          creator?: string | null
+          client?: string | null
+          article?: Json | null
+          total?: number | null
+          remain?: number | null
+          payment?: string | null
+          comment?: string | null
+          package?: string | null
+          status?: string | null
           created_at?: string
-          sale_id?: string
+          sale_id?: string | null
         }
         Update: {
           id?: number
           uid?: string
-          creator?: string
-          client?: string
-          article?: Json
-          total?: number
-          net_payement?: number
-          remain?: number
-          payment?: string
-          comment?: string
-          package?: string
-          status?: string
+          creator?: string | null
+          client?: string | null
+          article?: Json | null
+          total?: number | null
+          remain?: number | null
+          payment?: string | null
+          comment?: string | null
+          package?: string | null
+          status?: string | null
           created_at?: string
-          sale_id?: string
+          sale_id?: string | null
         }
       }
       sales: {
@@ -239,10 +178,12 @@ export type Database = {
         Row: {
           id: string
           username: string
-          address: string
-          contact: string
-          role: 'liver' | 'visitor' | 'deliver' | 'admin'
-          status: string
+          company: string | null
+          position: string | null
+          bio: string | null
+          avatar_url: string | null
+          role: 'attendee' | 'exhibitor' | 'speaker' | 'organizer' | 'admin'
+          interests: string[]
           social_links: Json | null
           profile_id: string | null
           settings: Json | null
@@ -253,10 +194,12 @@ export type Database = {
         Insert: {
           id: string
           username: string
-          address?: string
-          contact?: string
-          role?: 'liver' | 'visitor' | 'deliver' | 'admin'
-          status?: string
+          company?: string | null
+          position?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          role?: 'attendee' | 'exhibitor' | 'speaker' | 'organizer' | 'admin'
+          interests?: string[]
           social_links?: Json | null
           profile_id?: string | null
           settings?: Json | null
@@ -267,10 +210,12 @@ export type Database = {
         Update: {
           id?: string
           username?: string
-          address?: string
-          contact?: string
-          role?: 'liver' | 'visitor' | 'deliver' | 'admin'
-          status?: string
+          company?: string | null
+          position?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          role?: 'attendee' | 'exhibitor' | 'speaker' | 'organizer' | 'admin'
+          interests?: string[]
           social_links?: Json | null
           profile_id?: string | null
           settings?: Json | null
